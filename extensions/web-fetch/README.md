@@ -1,12 +1,26 @@
 # web-fetch extension contract
 
-Status: MVP static `web_fetch` tool implemented in `index.ts`. Readability-grade Markdown extraction is still planned as the next step.
+Status: MVP static `web_fetch` tool implemented. Readability-grade Markdown extraction is still planned as the next step.
 
 ## Goal
 
 Provide a model-callable `web_fetch` tool that fetches an HTTP(S) URL and returns readable content, usually Markdown, plus structured metadata that tells the agent how trustworthy/complete the extraction is.
 
-The first implementation is static-only: it fetches the server response and parses HTML. Browser/Playwright rendering is intentionally out of scope for v1 and should be a separate extension or a future mode.
+The first implementation is static-only: it fetches the server response and does lightweight, regex-based HTML cleanup. Browser/Playwright rendering is intentionally out of scope for v1 and should be a separate extension or a future mode.
+
+## Files
+
+- `index.ts` - Pi tool registration, output truncation, and temp-file writing.
+- `core.ts` - tool orchestration that can be smoke-tested outside Pi.
+- `fetch.ts` - HTTP fetch, timeout/abort, content-type checks, decoding.
+- `extract.ts` - temporary MVP HTML cleanup/conversion. Replace with DOM + Readability/Turndown in step #4.
+- `types.ts` - shared types and constants.
+
+Run the smoke check from the repo root:
+
+```bash
+npm run check
+```
 
 ## Tool name
 
@@ -84,9 +98,9 @@ Future browser/Playwright support should not be added silently to v1. Add a new 
 
 ### `foldables`
 
-- `auto` (default): detect foldables and include their content only when they are confidently part of main content, such as `<details>` inside `main`/article. Always report detection metadata.
-- `ignore`: do not include collapsed/controlled hidden content; only report that it exists.
-- `include`: include likely foldable content from the selected scope, even if initially collapsed/hidden in HTML.
+- `auto` (default): include static `<details>` content in the selected scope, and report other foldable/collapsible signals as not expanded.
+- `ignore`: remove static `<details>` content from output and do not expand controlled hidden content.
+- `include`: include static `<details>` content from the selected scope. JavaScript/ARIA-controlled panels are detected but not expanded in v1.
 
 Foldable signals include:
 
@@ -100,9 +114,9 @@ The implementation should avoid expanding header/nav/footer accordions when `sco
 
 ### `hidden`
 
-- `exclude` (default): remove hidden elements unless handled by `foldables`.
-- `main`: include hidden elements only inside the selected main content candidate.
-- `all`: include hidden elements from the selected scope. This may introduce a lot of junk.
+- `exclude` (default): remove hidden elements detected in the selected scope unless handled by `foldables`.
+- `main`: include hidden elements detected in the selected scope.
+- `all`: include hidden elements detected in the selected scope. In v1 this behaves like `main` after scope selection; step #4 should make this more precise with a DOM parser.
 
 Hidden signals include:
 
