@@ -22,5 +22,6 @@ After installing, reload Pi resources with `/reload` or restart Pi.
 
 - `extensions/` - TypeScript Pi extensions and tools
 - `skills/` - Agent Skills-compatible skills
+  - `youtube-transcript/` - fetch timestamped YouTube transcripts via `youtube-transcript-plus`; based on Badlogic's [`youtube-transcript` skill](https://github.com/badlogic/pi-skills/tree/main/youtube-transcript) from [`badlogic/pi-skills`](https://github.com/badlogic/pi-skills)
 - `prompts/` - Pi prompt templates
 - `themes/` - Pi themes
