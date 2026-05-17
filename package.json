@@ -7,12 +7,16 @@
   "keywords": ["pi-package"],
   "license": "UNLICENSED",
   "pi": {
-    "extensions": ["./extensions"],
+    "extensions": ["./extensions/*.ts", "./extensions/*/index.ts"],
     "skills": ["./skills"],
     "prompts": ["./prompts"],
     "themes": ["./themes"]
   },
   "scripts": {
     "check": "echo \"No checks configured yet\""
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
   }
 }
