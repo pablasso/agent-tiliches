@@ -4,7 +4,38 @@ description: Fetch transcripts from YouTube videos for summarization, analysis, 
 ---
 # YouTube Transcript
 
-Fetch transcripts from YouTube videos.
+Fetch transcripts from YouTube videos and, by default, summarize them after the transcript is created.
+
+## Default workflow
+
+When a user provides a YouTube URL or video ID:
+
+1. Fetch the transcript with `transcript.js`.
+2. For medium or long videos, save the transcript to `.pi/cache/youtube-transcript/<video-id>.txt` before reading or summarizing it.
+3. Tell the user where the transcript was saved, if applicable.
+4. Unless the user explicitly asks for "transcript only" or "no summary", provide a summary after fetching the transcript.
+5. Do not paste the full transcript unless the user asks for it.
+
+## Summary expectations
+
+Make the summary useful on its own, not just a short abstract. Err on the side of coverage rather than extreme brevity.
+
+A good summary should:
+
+- Preserve the video's structure when possible, including sections, acts, chapters, or major topic shifts.
+- Cover all major arguments, examples, evidence, caveats, conclusions, and recommendations.
+- Include important names, numbers, timelines, technical details, and practical takeaways when they matter.
+- Avoid skipping important points just to be brief.
+- Distinguish the speaker's claims or opinions from external facts when relevant.
+- Use clear headings and bullets for longer videos.
+
+For longer videos, prefer this shape:
+
+1. `High-level summary` — a short overview of the main point.
+2. `Detailed summary` — sectioned bullets that cover the important details.
+3. `Key takeaways` — the most useful conclusions or actions.
+
+Only add `My thoughts`, critique, or opinion when the user asks for analysis, thoughts, or a personal take.
 
 ## Setup
 
