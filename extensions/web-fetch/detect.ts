@@ -157,10 +157,14 @@ function isDynamicFoldableControl(element: Element): boolean {
 	if ((element.getAttribute("aria-expanded") ?? "").toLowerCase() === "false") return true;
 	if (element.hasAttribute("aria-controls")) return true;
 
+	// Class/id names like "accordion" often live on containers. Only treat them
+	// as foldable controls when the element itself is actionable, otherwise the
+	// container can mask real nested buttons during nested-control pruning.
+	if (!isLikelyControl(element)) return false;
+
 	const classAndId = `${element.getAttribute("class") ?? ""} ${element.getAttribute("id") ?? ""}`;
 	if (/accordion|collapse|expand|drawer|toggle/i.test(classAndId) && hasMeaningfulText(element)) return true;
 
-	if (!isLikelyControl(element)) return false;
 	const text = normalizeInlineText(element.textContent ?? "").toLowerCase();
 	return /^(show more|read more|expand_more|show less|view more)$/.test(text);
 }

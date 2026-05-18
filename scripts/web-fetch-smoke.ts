@@ -66,6 +66,22 @@ const bodyScopeHtml = `<!doctype html>
 </body>
 </html>`;
 
+const accordionContainerHtml = `<!doctype html>
+<html>
+<head><title>Accordion Container Test</title></head>
+<body>
+  <main>
+    <h1>Accordion Container</h1>
+    <div class="accordion">
+      <button aria-expanded="false" aria-controls="panel-one">One</button>
+      <div id="panel-one" hidden>Panel one text</div>
+      <button aria-expanded="false" aria-controls="panel-two">Two</button>
+      <div id="panel-two" hidden>Panel two text</div>
+    </div>
+  </main>
+</body>
+</html>`;
+
 const server = createServer((req, res) => {
 	if (req.url === "/slow") {
 		res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
@@ -85,6 +101,10 @@ const server = createServer((req, res) => {
 	}
 	if (req.url === "/body-scope") {
 		res.end(bodyScopeHtml);
+		return;
+	}
+	if (req.url === "/accordion-container") {
+		res.end(accordionContainerHtml);
 		return;
 	}
 	res.end(html);
@@ -146,6 +166,17 @@ try {
 	assert.match(bodyScopeIncluded.output, /Body controlled panel content/);
 	assert.doesNotMatch(bodyScopeIncluded.output, /Navigation panel/);
 	assert.equal(bodyScopeIncluded.details.foldables.controlledPanelsIncluded, 1);
+
+	const accordionContainer = await runWebFetch({
+		url: new URL("accordion-container", baseUrl).toString(),
+		format: "markdown",
+		scope: "main",
+		foldables: "include",
+	});
+	assert.equal(accordionContainer.details.foldables.detected, 2);
+	assert.equal(accordionContainer.details.foldables.controlledPanelsIncluded, 2);
+	assert.match(accordionContainer.output, /Panel one text/);
+	assert.match(accordionContainer.output, /Panel two text/);
 
 	let timedOut = false;
 	try {
