@@ -1,5 +1,7 @@
+import { extractHtml } from "./extract.ts";
 import { fetchText, formatBytes } from "./fetch.ts";
-import { countMatches, extractHtml, looksLikeHtml, renderText } from "./extract.ts";
+import { looksLikeHtml, renderText } from "./render.ts";
+import { countMatches } from "./text.ts";
 import {
 	MAX_FETCH_BYTES,
 	type NormalizedParams,
@@ -40,13 +42,10 @@ export async function runWebFetch(params: WebFetchParams, options: RunWebFetchOp
 		const extracted = extractHtml(fetched.body, input, fetched.finalUrl);
 		output = extracted.output;
 		title = extracted.title;
-		extraction = "html-cleaned";
+		extraction = extracted.extraction;
 		foldables = extracted.foldables;
 		hidden = extracted.hidden;
 		warnings.push(...extracted.warnings);
-		if (input.format === "markdown") {
-			warnings.push("Markdown output uses MVP regex-based HTML conversion; Step #4 should replace this with Readability/Turndown.");
-		}
 	} else {
 		extraction = "text";
 		output = renderText(fetched.body);
@@ -143,7 +142,7 @@ function assessBrowserNeed(input: {
 	}
 
 	if (input.foldablesDetected >= 10 && input.foldablesIgnored >= 10) {
-		return { recommended: true, reason: "many collapsible/foldable signals were detected but not expanded by static extraction" };
+		return { recommended: true, reason: "many collapsible/foldable elements were detected but not expanded by static extraction" };
 	}
 
 	return { recommended: false };

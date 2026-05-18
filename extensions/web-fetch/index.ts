@@ -2,7 +2,7 @@
  * web-fetch Pi extension.
  *
  * v1 is static-only: fetch a single HTTP(S) URL, decode textual responses,
- * return basic readable output, and report extraction warnings/metadata.
+ * return readable Markdown/text/HTML output, and report extraction warnings/metadata.
  */
 
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -26,7 +26,7 @@ const ModeSchema = StringEnum(["auto", "static"] as const, {
 });
 
 const FormatSchema = StringEnum(["markdown", "text", "html"] as const, {
-	description: "Output format returned to the model. Markdown is default and currently uses a basic HTML-to-Markdown conversion.",
+	description: "Output format returned to the model. Markdown is default and uses Readability/Turndown for HTML pages.",
 	default: "markdown",
 });
 

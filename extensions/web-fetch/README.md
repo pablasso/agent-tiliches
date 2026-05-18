@@ -1,19 +1,23 @@
 # web-fetch extension contract
 
-Status: MVP static `web_fetch` tool implemented. Readability-grade Markdown extraction is still planned as the next step.
+Status: Static `web_fetch` tool implemented with DOM parsing, Mozilla Readability main-content extraction, and Turndown Markdown conversion.
 
 ## Goal
 
 Provide a model-callable `web_fetch` tool that fetches an HTTP(S) URL and returns readable content, usually Markdown, plus structured metadata that tells the agent how trustworthy/complete the extraction is.
 
-The first implementation is static-only: it fetches the server response and does lightweight, regex-based HTML cleanup. Browser/Playwright rendering is intentionally out of scope for v1 and should be a separate extension or a future mode.
+The first implementation is static-only: it fetches the server response, parses HTML with a DOM, extracts readable main content with Mozilla Readability when possible, and converts HTML to Markdown with Turndown. Browser/Playwright rendering is intentionally out of scope for v1 and should be a separate extension or a future mode.
 
 ## Files
 
 - `index.ts` - Pi tool registration, output truncation, and temp-file writing.
 - `core.ts` - tool orchestration that can be smoke-tested outside Pi.
 - `fetch.ts` - HTTP fetch, timeout/abort, content-type checks, decoding.
-- `extract.ts` - temporary MVP HTML cleanup/conversion. Replace with DOM + Readability/Turndown in step #4.
+- `extract.ts` - high-level HTML extraction orchestration.
+- `dom.ts` - DOM parsing, cleanup, scope selection, URL rewriting.
+- `detect.ts` - static foldable/hidden element detection and warnings.
+- `render.ts` - HTML/Text/Markdown rendering.
+- `text.ts` - text normalization helpers.
 - `types.ts` - shared types and constants.
 
 Run the smoke check from the repo root:
@@ -98,11 +102,11 @@ Future browser/Playwright support should not be added silently to v1. Add a new 
 
 ### `foldables`
 
-- `auto` (default): include static `<details>` content in the selected scope, and report other foldable/collapsible signals as not expanded.
+- `auto` (default): include static `<details>` content in the selected scope, and report other foldable/collapsible elements as not expanded.
 - `ignore`: remove static `<details>` content from output and do not expand controlled hidden content.
 - `include`: include static `<details>` content from the selected scope. JavaScript/ARIA-controlled panels are detected but not expanded in v1.
 
-Foldable signals include:
+Foldable/collapsible element signals include:
 
 - `<details>` / `<summary>`
 - `aria-expanded="false"`
@@ -116,9 +120,9 @@ The implementation should avoid expanding header/nav/footer accordions when `sco
 
 - `exclude` (default): remove hidden elements detected in the selected scope unless handled by `foldables`.
 - `main`: include hidden elements detected in the selected scope.
-- `all`: include hidden elements detected in the selected scope. In v1 this behaves like `main` after scope selection; step #4 should make this more precise with a DOM parser.
+- `all`: include hidden elements detected in the selected scope. In the current static implementation this behaves like `main` after scope selection.
 
-Hidden signals include:
+Hidden element signals include:
 
 - `hidden` attribute
 - `aria-hidden="true"`
@@ -140,7 +144,7 @@ type WebFetchDetails = {
   mode: "auto" | "static";
   format: "markdown" | "text" | "html";
   scope: "main" | "page";
-  extraction: "html-readability" | "html-cleaned" | "text" | "raw"; // MVP returns "html-cleaned" for HTML
+  extraction: "html-readability" | "html-cleaned" | "text" | "raw";
 
   bytesFetched: number;
   outputBytes: number;
@@ -152,14 +156,14 @@ type WebFetchDetails = {
   truncated?: boolean;
 
   foldables: {
-    detected: number;
-    included: number;
+    detected: number; // unique foldable/collapsible elements in selected scope
+    included: number; // static <details> sections included in output
     ignored: number;
     examples: string[];
   };
 
   hidden: {
-    detected: number;
+    detected: number; // unique hidden elements in selected scope
     included: number;
     ignored: number;
   };
@@ -177,7 +181,7 @@ Set `browserRecommended: true` when static extraction looks suspect, for example
 - HTML is very large but extracted content is very small.
 - Extracted content is mostly navigation/footer text.
 - Many deferred/client-rendered data markers are present.
-- Many foldables are detected but not included.
+- Many foldable/collapsible elements are detected but not included.
 - The page has a root app shell with little readable body content.
 
 For the Google Careers candidate-prep URL, the tool should likely warn that static extraction may be incomplete because the HTML is large, uses deferred Google client data, and naive visible text is nav/footer-heavy.

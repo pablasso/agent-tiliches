@@ -25,7 +25,7 @@ export interface NormalizedParams {
 	hidden: Hidden;
 }
 
-export type Extraction = "html-cleaned" | "text" | "raw";
+export type Extraction = "html-readability" | "html-cleaned" | "text" | "raw";
 
 export interface SignalSummary {
 	detected: number;

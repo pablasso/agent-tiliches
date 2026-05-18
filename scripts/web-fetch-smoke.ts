@@ -20,6 +20,35 @@ const html = `<!doctype html>
 </body>
 </html>`;
 
+const articleHtml = `<!doctype html>
+<html>
+<head><title>Readable Test</title></head>
+<body>
+  <nav>Article navigation junk should not appear</nav>
+  <article>
+    <h1>Readable Article</h1>
+    <p>This is a substantial paragraph about web fetching and readable extraction. It has enough text for Mozilla Readability to identify it as main article content rather than page chrome.</p>
+    <p>Another paragraph provides more natural article content with useful information, links, and enough words to pass the extraction threshold in the smoke test.</p>
+    <p>Final paragraph confirms that the article body is preserved and navigation is excluded from the Markdown output.</p>
+  </article>
+</body>
+</html>`;
+
+const scopedHtml = `<!doctype html>
+<html>
+<head><title>Scope Test</title></head>
+<body>
+  <main>
+    <h1>Main Content</h1>
+    <p>Short but user-selected main content should win.</p>
+  </main>
+  <article>
+    <h1>Wrong Outside Article</h1>
+    <p>This is a long external article outside the main element. It has enough text to tempt Readability if extraction accidentally ignores the selected scope. This second sentence adds more content. This third sentence adds even more content.</p>
+  </article>
+</body>
+</html>`;
+
 const server = createServer((req, res) => {
 	if (req.url === "/slow") {
 		res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
@@ -29,6 +58,14 @@ const server = createServer((req, res) => {
 	}
 
 	res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+	if (req.url === "/article") {
+		res.end(articleHtml);
+		return;
+	}
+	if (req.url === "/scope") {
+		res.end(scopedHtml);
+		return;
+	}
 	res.end(html);
 });
 
@@ -43,15 +80,28 @@ try {
 	assert.match(result.output, /Folded Answer/);
 	assert.doesNotMatch(result.output, /Navigation junk/);
 	assert.doesNotMatch(result.output, /Hidden Secret/);
-	assert.equal(result.details.foldables.detected, 4);
+	assert.equal(result.details.foldables.detected, 3);
 	assert.equal(result.details.foldables.included, 1);
-	assert.equal(result.details.foldables.ignored, 3);
+	assert.equal(result.details.foldables.ignored, 2);
 	assert.equal(result.details.hidden.detected, 1);
 	assert.equal(result.details.hidden.included, 0);
 
 	const noFoldables = await runWebFetch({ url: baseUrl, format: "markdown", scope: "main", foldables: "ignore" });
 	assert.doesNotMatch(noFoldables.output, /Folded Answer/);
 	assert.equal(noFoldables.details.foldables.included, 0);
+
+	const withHidden = await runWebFetch({ url: baseUrl, format: "markdown", scope: "main", hidden: "main" });
+	assert.match(withHidden.output, /Hidden Secret/);
+	assert.equal(withHidden.details.hidden.included, 1);
+
+	const article = await runWebFetch({ url: new URL("article", baseUrl).toString(), format: "markdown", scope: "main" });
+	assert.equal(article.details.extraction, "html-readability");
+	assert.match(article.output, /## Readable Article/);
+	assert.doesNotMatch(article.output, /Article navigation junk/);
+
+	const scoped = await runWebFetch({ url: new URL("scope", baseUrl).toString(), format: "markdown", scope: "main" });
+	assert.match(scoped.output, /# Main Content/);
+	assert.doesNotMatch(scoped.output, /Wrong Outside Article/);
 
 	let timedOut = false;
 	try {
