@@ -34,6 +34,19 @@ export interface SignalSummary {
 	examples?: string[];
 }
 
+export interface WebFetchQuality {
+	rawBytes: number;
+	outputChars: number;
+	outputToRawRatio: number;
+	scriptCount: number;
+	clientRenderedMarkers: boolean;
+	sparseOutput: boolean;
+	navHeavyOutput: boolean;
+	foldablesBlocked: boolean;
+	browserRecommended: boolean;
+	reasons: string[];
+}
+
 export interface WebFetchDetails {
 	url: string;
 	finalUrl: string;
@@ -51,8 +64,12 @@ export interface WebFetchDetails {
 	fullOutputPath?: string;
 	truncated?: boolean;
 	responseTruncated?: boolean;
-	foldables: Required<Pick<SignalSummary, "detected" | "included" | "ignored">> & { examples: string[] };
+	foldables: Required<Pick<SignalSummary, "detected" | "included" | "ignored">> & {
+		examples: string[];
+		controlledPanelsIncluded: number;
+	};
 	hidden: Required<Pick<SignalSummary, "detected" | "included" | "ignored">>;
+	quality: WebFetchQuality;
 	warnings: string[];
 	browserRecommended: boolean;
 	browserReason?: string;

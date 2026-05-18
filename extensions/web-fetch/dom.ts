@@ -96,6 +96,18 @@ export function isHiddenElement(element: Element): boolean {
 	return /display\s*:\s*none|visibility\s*:\s*hidden/i.test(style);
 }
 
+export function isInPageChrome(element: Element): boolean {
+	for (let current: Element | null = element; current; current = current.parentElement) {
+		const tag = current.tagName.toLowerCase();
+		const role = (current.getAttribute("role") ?? "").toLowerCase();
+		const ariaLabel = (current.getAttribute("aria-label") ?? "").toLowerCase();
+		if (tag === "header" || tag === "nav" || tag === "footer" || tag === "aside") return true;
+		if (role === "navigation" || role === "banner" || role === "contentinfo") return true;
+		if (ariaLabel.includes("navigation") || ariaLabel.includes("main menu")) return true;
+	}
+	return false;
+}
+
 export function allElements(root: ParentNode): Element[] {
 	const elements = Array.from(root.querySelectorAll("*"));
 	if (isElement(root)) return [root, ...elements];

@@ -15,10 +15,12 @@ import {
 import {
 	detectFoldables,
 	detectHidden,
+	expandControlledPanels,
 	foldableWarning,
 	hiddenWarning,
 	summarizeFoldables,
 	summarizeHidden,
+	type DetectionOptions,
 	type FoldableSummary,
 	type HiddenSummary,
 } from "./detect.ts";
@@ -52,10 +54,12 @@ export function extractHtml(html: string, input: NormalizedParams, finalUrl: str
 	stripNoise(document);
 
 	const sourceScope = selectScopeElement(document, input.scope);
-	const foldableDetection = detectFoldables(sourceScope);
-	const hiddenDetection = detectHidden(sourceScope);
-	const foldables = summarizeFoldables(foldableDetection, input.foldables);
-	const hidden = summarizeHidden(hiddenDetection, input.hidden);
+	const detectionOptions: DetectionOptions = { ignorePageChrome: input.scope === "main" };
+	const foldableDetection = detectFoldables(sourceScope, detectionOptions);
+	const hiddenDetection = detectHidden(sourceScope, detectionOptions);
+	const controlledPanelsIncluded = input.foldables === "include" ? expandControlledPanels(sourceScope, detectionOptions) : 0;
+	const foldables = summarizeFoldables(foldableDetection, input.foldables, controlledPanelsIncluded);
+	const hidden = summarizeHidden(hiddenDetection, input.hidden, controlledPanelsIncluded);
 
 	if (foldableDetection.detected > foldables.included) {
 		warnings.push(foldableWarning(foldableDetection, foldables, input.foldables));

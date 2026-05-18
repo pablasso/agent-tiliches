@@ -104,7 +104,7 @@ Future browser/Playwright support should not be added silently to v1. Add a new 
 
 - `auto` (default): include static `<details>` content in the selected scope, and report other foldable/collapsible elements as not expanded.
 - `ignore`: remove static `<details>` content from output and do not expand controlled hidden content.
-- `include`: include static `<details>` content from the selected scope. JavaScript/ARIA-controlled panels are detected but not expanded in v1.
+- `include`: include static `<details>` content and simple hidden `aria-controls` panels already present in the selected scope. JavaScript-generated content is still not available in v1.
 
 Foldable/collapsible element signals include:
 
@@ -114,7 +114,7 @@ Foldable/collapsible element signals include:
 - class/id names containing `accordion`, `collapse`, `expand`, `drawer`, `toggle`
 - text like `show more`, `read more`, `expand_more`
 
-The implementation should avoid expanding header/nav/footer accordions when `scope` is `main`.
+The implementation ignores obvious header/nav/footer/sidebar controls when `scope` is `main`, especially when extraction falls back to the whole `<body>`.
 
 ### `hidden`
 
@@ -156,16 +156,30 @@ type WebFetchDetails = {
   truncated?: boolean;
 
   foldables: {
-    detected: number; // unique foldable/collapsible elements in selected scope
-    included: number; // static <details> sections included in output
+    detected: number; // foldable/collapsible elements in selected non-chrome scope
+    included: number; // static <details> + statically included aria-controls panels
     ignored: number;
+    controlledPanelsIncluded: number;
     examples: string[];
   };
 
   hidden: {
-    detected: number; // unique hidden elements in selected scope
+    detected: number; // meaningful hidden elements in selected non-chrome scope
     included: number;
     ignored: number;
+  };
+
+  quality: {
+    rawBytes: number;
+    outputChars: number;
+    outputToRawRatio: number;
+    scriptCount: number;
+    clientRenderedMarkers: boolean;
+    sparseOutput: boolean;
+    navHeavyOutput: boolean;
+    foldablesBlocked: boolean;
+    browserRecommended: boolean;
+    reasons: string[];
   };
 
   warnings: string[];

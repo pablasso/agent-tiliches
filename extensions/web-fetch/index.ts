@@ -36,7 +36,7 @@ const ScopeSchema = StringEnum(["main", "page"] as const, {
 });
 
 const FoldablesSchema = StringEnum(["auto", "ignore", "include"] as const, {
-	description: "How to handle details/accordion/collapse-style content. v1 can include static <details> content but cannot expand JavaScript-controlled panels.",
+	description: "How to handle details/accordion/collapse-style content. v1 can include static <details> content and simple hidden aria-controls panels, but cannot expand JavaScript-generated content.",
 	default: "auto",
 });
 

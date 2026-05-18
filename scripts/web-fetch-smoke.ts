@@ -49,6 +49,23 @@ const scopedHtml = `<!doctype html>
 </body>
 </html>`;
 
+const bodyScopeHtml = `<!doctype html>
+<html>
+<head><title>Body Scope Test</title></head>
+<body>
+  <nav>
+    <button aria-expanded="false" aria-controls="nav-panel">Jobs</button>
+    <div id="nav-panel" hidden>Navigation panel should not count as main content.</div>
+  </nav>
+  <div>
+    <h1>Body Fallback Content</h1>
+    <p>There is no main or article element, so body fallback extraction should still ignore chrome signals.</p>
+    <button aria-expanded="false" aria-controls="body-panel">Show more</button>
+    <div id="body-panel" hidden>Body controlled panel content.</div>
+  </div>
+</body>
+</html>`;
+
 const server = createServer((req, res) => {
 	if (req.url === "/slow") {
 		res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
@@ -66,6 +83,10 @@ const server = createServer((req, res) => {
 		res.end(scopedHtml);
 		return;
 	}
+	if (req.url === "/body-scope") {
+		res.end(bodyScopeHtml);
+		return;
+	}
 	res.end(html);
 });
 
@@ -80,11 +101,18 @@ try {
 	assert.match(result.output, /Folded Answer/);
 	assert.doesNotMatch(result.output, /Navigation junk/);
 	assert.doesNotMatch(result.output, /Hidden Secret/);
-	assert.equal(result.details.foldables.detected, 3);
+	assert.equal(result.details.foldables.detected, 2);
 	assert.equal(result.details.foldables.included, 1);
-	assert.equal(result.details.foldables.ignored, 2);
+	assert.equal(result.details.foldables.ignored, 1);
 	assert.equal(result.details.hidden.detected, 1);
 	assert.equal(result.details.hidden.included, 0);
+	assert.equal(result.details.quality.browserRecommended, false);
+
+	const includeFoldables = await runWebFetch({ url: baseUrl, format: "markdown", scope: "main", foldables: "include" });
+	assert.match(includeFoldables.output, /Hidden Secret/);
+	assert.equal(includeFoldables.details.foldables.included, 2);
+	assert.equal(includeFoldables.details.foldables.controlledPanelsIncluded, 1);
+	assert.equal(includeFoldables.details.hidden.included, 1);
 
 	const noFoldables = await runWebFetch({ url: baseUrl, format: "markdown", scope: "main", foldables: "ignore" });
 	assert.doesNotMatch(noFoldables.output, /Folded Answer/);
@@ -102,6 +130,22 @@ try {
 	const scoped = await runWebFetch({ url: new URL("scope", baseUrl).toString(), format: "markdown", scope: "main" });
 	assert.match(scoped.output, /# Main Content/);
 	assert.doesNotMatch(scoped.output, /Wrong Outside Article/);
+
+	const bodyScope = await runWebFetch({ url: new URL("body-scope", baseUrl).toString(), format: "markdown", scope: "main" });
+	assert.equal(bodyScope.details.foldables.detected, 1);
+	assert.equal(bodyScope.details.hidden.detected, 1);
+	assert.doesNotMatch(bodyScope.output, /Navigation panel/);
+	assert.doesNotMatch(bodyScope.output, /Body controlled panel/);
+
+	const bodyScopeIncluded = await runWebFetch({
+		url: new URL("body-scope", baseUrl).toString(),
+		format: "markdown",
+		scope: "main",
+		foldables: "include",
+	});
+	assert.match(bodyScopeIncluded.output, /Body controlled panel content/);
+	assert.doesNotMatch(bodyScopeIncluded.output, /Navigation panel/);
+	assert.equal(bodyScopeIncluded.details.foldables.controlledPanelsIncluded, 1);
 
 	let timedOut = false;
 	try {
