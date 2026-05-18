@@ -4,7 +4,11 @@ description: Fetch transcripts from YouTube videos for summarization, analysis, 
 ---
 # YouTube Transcript
 
-Fetch transcripts from YouTube videos and, by default, summarize them after the transcript is created.
+Fetch transcripts from YouTube videos and summarize them after the transcript is created.
+
+## Required behavior
+
+After fetching or saving a transcript, include a useful summary in the final response.
 
 ## Default workflow
 
@@ -13,7 +17,7 @@ When a user provides a YouTube URL or video ID:
 1. Fetch the transcript with `transcript.js`.
 2. For medium or long videos, save the transcript to `.pi/cache/youtube-transcript/<video-id>.txt` before reading or summarizing it.
 3. Tell the user where the transcript was saved, if applicable.
-4. Unless the user explicitly asks for "transcript only" or "no summary", provide a summary after fetching the transcript.
+4. Provide a useful summary after fetching the transcript.
 5. Do not paste the full transcript unless the user asks for it.
 
 ## Summary expectations
