@@ -4,20 +4,33 @@
   "private": true,
   "type": "module",
   "description": "Personal Pi customizations, skills, extensions, prompt templates, and themes.",
-  "keywords": ["pi-package"],
+  "keywords": [
+    "pi-package"
+  ],
   "license": "UNLICENSED",
   "pi": {
-    "extensions": ["./extensions/*.ts", "./extensions/*/index.ts"],
-    "skills": ["./skills"],
-    "prompts": ["./prompts"],
-    "themes": ["./themes"]
+    "extensions": [
+      "./extensions/*.ts",
+      "./extensions/*/index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./prompts"
+    ],
+    "themes": [
+      "./themes"
+    ]
   },
   "scripts": {
-    "check": "node --no-warnings --experimental-strip-types scripts/web-fetch-smoke.ts"
+    "check": "node --no-warnings --experimental-strip-types scripts/web-fetch-smoke.ts",
+    "check:browser": "node --no-warnings --experimental-strip-types scripts/web-fetch-browser-smoke.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "jsdom": "^26.1.0",
+    "playwright": "^1.60.0",
     "turndown": "^7.2.0"
   },
   "peerDependencies": {

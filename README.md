@@ -18,6 +18,14 @@ Or from anywhere, pass the absolute path to your local checkout.
 
 After installing, reload Pi resources with `/reload` or restart Pi.
 
+For the `web_fetch` extension's Playwright browser mode, run:
+
+```bash
+npm install
+npx playwright install chromium
+npm run check:browser
+```
+
 ## Layout
 
 - `extensions/` - TypeScript Pi extensions and tools

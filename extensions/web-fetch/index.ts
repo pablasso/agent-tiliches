@@ -1,8 +1,8 @@
 /**
  * web-fetch Pi extension.
  *
- * v1 is static-only: fetch a single HTTP(S) URL, decode textual responses,
- * return readable Markdown/text/HTML output, and report extraction warnings/metadata.
+ * Fetch a single HTTP(S) URL, return readable Markdown/text/HTML output,
+ * and report extraction warnings/metadata. Static and Playwright browser modes are supported.
  */
 
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -20,8 +20,8 @@ import {
 import { runWebFetch } from "./core.ts";
 import type { WebFetchDetails, WebFetchParams } from "./types.ts";
 
-const ModeSchema = StringEnum(["auto", "static"] as const, {
-	description: 'Fetch/extraction strategy. v1 supports static fetching only; "auto" reports when browser rendering is recommended.',
+const ModeSchema = StringEnum(["auto", "static", "browser"] as const, {
+	description: 'Fetch/extraction strategy. "auto" and "static" use static fetching; "auto" reports when browser rendering is recommended. "browser" uses Playwright/Chromium to render the page and expand foldables.',
 	default: "auto",
 });
 
@@ -58,11 +58,12 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "web_fetch",
 		label: "Web Fetch",
-		description: `Fetch a single HTTP(S) URL using a static HTTP request and return readable content. Supports textual responses only. Output is truncated to ${DEFAULT_MAX_LINES} lines or ${formatSize(DEFAULT_MAX_BYTES)}; full output is saved to a temp file when truncated. v1 does not run JavaScript or use a browser.`,
-		promptSnippet: "Fetch a URL with a static HTTP request and return readable content plus extraction warnings/metadata",
+		description: `Fetch a single HTTP(S) URL and return readable content. Static mode supports textual responses only; browser mode uses Playwright/Chromium to render JavaScript-driven pages and expand foldables. Output is truncated to ${DEFAULT_MAX_LINES} lines or ${formatSize(DEFAULT_MAX_BYTES)}; full output is saved to a temp file when truncated.`,
+		promptSnippet: "Fetch a URL and return readable content plus extraction warnings/metadata; use browser mode for JavaScript-heavy or foldable pages",
 		promptGuidelines: [
 			"Use web_fetch when the user asks to read, fetch, or summarize a URL. Prefer markdown output unless raw HTML or plain text is explicitly requested.",
-			"Treat web_fetch warnings, especially browserRecommended, as uncertainty about page completeness; tell the user when browser rendering may be needed.",
+			"Treat web_fetch warnings, especially browserRecommended, as uncertainty about page completeness; retry with mode=browser when static extraction looks incomplete and the user wants full page content.",
+			"Use web_fetch mode=browser for JavaScript-heavy pages, pages with important accordions/foldables, or when a prior static fetch returned browserRecommended=true.",
 		],
 		parameters: WebFetchParamsSchema,
 
