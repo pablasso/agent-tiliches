@@ -100,6 +100,22 @@ const appShellHtml = `<!doctype html>
 </body>
 </html>`;
 
+const codeBlockHtml = `<!doctype html>
+<html>
+<head><title>Code Block Test</title></head>
+<body>
+  <main>
+    <h1>Code Block</h1>
+    <p>Code indentation should be preserved.</p>
+    <pre><code>if x:
+    print(x)
+
+for item in items:
+    print(item)</code></pre>
+  </main>
+</body>
+</html>`;
+
 const server = createServer((req, res) => {
 	if (req.url === "/slow") {
 		res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
@@ -127,6 +143,10 @@ const server = createServer((req, res) => {
 	}
 	if (req.url === "/app-shell") {
 		res.end(appShellHtml);
+		return;
+	}
+	if (req.url === "/code-block") {
+		res.end(codeBlockHtml);
 		return;
 	}
 	res.end(html);
@@ -182,6 +202,10 @@ try {
 	assert.equal(appShell.details.browserRecommended, true);
 	assert.match(appShell.details.browserReason ?? "", /client\/deferred rendering/);
 	assert.match(appShell.details.warnings.join("\n"), /Browser navigation recommended/);
+
+	const codeBlock = await runWebFetch({ url: new URL("code-block", baseUrl).toString(), format: "markdown", scope: "main" });
+	assert.match(codeBlock.output, /```\nif x:\n    print\(x\)\n\nfor item in items:\n    print\(item\)\n```/);
+	assert.doesNotMatch(codeBlock.output, /if x:\nprint\(x\)/);
 
 	let timedOut = false;
 	try {

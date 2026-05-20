@@ -49,5 +49,5 @@ function htmlToMarkdown(cleanedHtml: string): string {
 }
 
 export function normalizeHtml(html: string): string {
-	return html.replace(/\r/g, "").replace(/[\t ]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+	return html.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }

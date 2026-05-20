@@ -15,15 +15,37 @@ export function normalizeMarkdown(markdown: string): string {
 
 	const normalized: string[] = [];
 	let blankCount = 0;
+	let fence: "`" | "~" | undefined;
+	let fenceLength = 0;
+
 	for (const line of lines) {
 		const trimmed = line.trim();
+		const fenceMatch = trimmed.match(/^(`{3,}|~{3,})/);
+
+		if (fence) {
+			normalized.push(line);
+			const closingMatch = trimmed.match(/^(`{3,}|~{3,})\s*$/);
+			if (closingMatch && closingMatch[1][0] === fence && closingMatch[1].length >= fenceLength) {
+				fence = undefined;
+				fenceLength = 0;
+			}
+			continue;
+		}
+
 		if (!trimmed) {
 			blankCount++;
 			if (blankCount <= 2) normalized.push("");
 			continue;
 		}
+
 		blankCount = 0;
-		normalized.push(line.replace(/[\t ]+/g, " ").trim());
+		const normalizedLine = line.replace(/[\t ]+/g, " ").trim();
+		normalized.push(normalizedLine);
+
+		if (fenceMatch) {
+			fence = fenceMatch[1][0] as "`" | "~";
+			fenceLength = fenceMatch[1].length;
+		}
 	}
 
 	return normalized.join("\n").replace(/^\n+|\n+$/g, "").trim();
