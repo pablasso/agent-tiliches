@@ -1,5 +1,4 @@
 import { extractHtml } from "./extract.ts";
-import { runBrowserWebFetch } from "./browser.ts";
 import { fetchText, formatBytes } from "./fetch.ts";
 import { assessExtractionQuality } from "./quality.ts";
 import { looksLikeHtml, renderText } from "./render.ts";
@@ -14,11 +13,6 @@ export interface RunWebFetchOptions {
 export async function runWebFetch(params: WebFetchParams, options: RunWebFetchOptions = {}): Promise<WebFetchRunResult> {
 	const input = normalizeParams(params);
 	const requestedUrl = normalizeHttpUrl(input.url);
-
-	if (input.mode === "browser") {
-		return runBrowserWebFetch(input, requestedUrl, options);
-	}
-
 	const warnings: string[] = [];
 
 	const fetched = await fetchText(requestedUrl, options);
@@ -34,7 +28,7 @@ export async function runWebFetch(params: WebFetchParams, options: RunWebFetchOp
 	let title: string | undefined;
 	let extraction: WebFetchDetails["extraction"] = "raw";
 	let rawHtml: string | undefined;
-	let foldables: WebFetchDetails["foldables"] = { detected: 0, included: 0, ignored: 0, controlledPanelsIncluded: 0, examples: [] };
+	let foldables: WebFetchDetails["foldables"] = { detected: 0, included: 0, ignored: 0, examples: [] };
 	let hidden: WebFetchDetails["hidden"] = { detected: 0, included: 0, ignored: 0 };
 
 	if (isHtml) {
@@ -65,8 +59,8 @@ export async function runWebFetch(params: WebFetchParams, options: RunWebFetchOp
 		foldablesIgnored: foldables.ignored,
 		foldablesDetected: foldables.detected,
 	});
-	if (input.mode === "auto" && quality.browserRecommended) {
-		warnings.push(`Browser rendering recommended: ${quality.reasons[0]}`);
+	if (quality.browserRecommended) {
+		warnings.push(`Browser navigation recommended: ${quality.reasons[0]}`);
 	}
 
 	const details: WebFetchDetails = {
@@ -75,7 +69,6 @@ export async function runWebFetch(params: WebFetchParams, options: RunWebFetchOp
 		status: fetched.status,
 		contentType: fetched.contentType,
 		title,
-		mode: input.mode,
 		format: input.format,
 		scope: input.scope,
 		extraction,
@@ -87,8 +80,8 @@ export async function runWebFetch(params: WebFetchParams, options: RunWebFetchOp
 		hidden,
 		quality,
 		warnings,
-		browserRecommended: input.mode === "auto" ? quality.browserRecommended : false,
-		browserReason: input.mode === "auto" ? quality.reasons[0] : undefined,
+		browserRecommended: quality.browserRecommended,
+		browserReason: quality.reasons[0],
 	};
 
 	return { output, rawHtml, details };
@@ -97,11 +90,8 @@ export async function runWebFetch(params: WebFetchParams, options: RunWebFetchOp
 export function normalizeParams(params: WebFetchParams): NormalizedParams {
 	return {
 		url: params.url,
-		mode: params.mode ?? "auto",
 		format: params.format ?? "markdown",
 		scope: params.scope ?? "main",
-		foldables: params.foldables ?? "auto",
-		hidden: params.hidden ?? "exclude",
 	};
 }
 

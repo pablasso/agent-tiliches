@@ -18,17 +18,10 @@ Or from anywhere, pass the absolute path to your local checkout.
 
 After installing, reload Pi resources with `/reload` or restart Pi.
 
-For the `web_fetch` extension's Playwright browser mode, run:
-
-```bash
-npm install
-npx playwright install chromium
-npm run check:browser
-```
-
 ## Layout
 
 - `extensions/` - TypeScript Pi extensions and tools
+  - `web-fetch/` - static URL fetch/readable extraction with warnings when browser navigation may be needed
 - `skills/` - Agent Skills-compatible skills
   - `youtube-transcript/` - fetch timestamped YouTube transcripts via `youtube-transcript-plus`; based on Badlogic's [`youtube-transcript` skill](https://github.com/badlogic/pi-skills/tree/main/youtube-transcript) from [`badlogic/pi-skills`](https://github.com/badlogic/pi-skills)
 - `prompts/` - Pi prompt templates

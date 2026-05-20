@@ -15,7 +15,6 @@ import {
 import {
 	detectFoldables,
 	detectHidden,
-	expandControlledPanels,
 	foldableWarning,
 	hiddenWarning,
 	summarizeFoldables,
@@ -57,18 +56,17 @@ export function extractHtml(html: string, input: NormalizedParams, finalUrl: str
 	const detectionOptions: DetectionOptions = { ignorePageChrome: input.scope === "main" };
 	const foldableDetection = detectFoldables(sourceScope, detectionOptions);
 	const hiddenDetection = detectHidden(sourceScope, detectionOptions);
-	const controlledPanelsIncluded = input.foldables === "include" ? expandControlledPanels(sourceScope, detectionOptions) : 0;
-	const foldables = summarizeFoldables(foldableDetection, input.foldables, controlledPanelsIncluded);
-	const hidden = summarizeHidden(hiddenDetection, input.hidden, controlledPanelsIncluded);
+	const foldables = summarizeFoldables(foldableDetection);
+	const hidden = summarizeHidden(hiddenDetection);
 
-	if (foldableDetection.detected > foldables.included) {
-		warnings.push(foldableWarning(foldableDetection, foldables, input.foldables));
+	if (foldables.ignored > 0) {
+		warnings.push(foldableWarning(foldables));
 	}
-	if (hiddenDetection.detected > 0) {
-		warnings.push(hiddenWarning(hiddenDetection, hidden, input.hidden));
+	if (hidden.detected > 0) {
+		warnings.push(hiddenWarning(hidden));
 	}
 
-	applyExtractionOptions(sourceScope, input);
+	applyStaticCleanup(sourceScope);
 
 	let extraction: HtmlExtractionResult["extraction"] = "html-cleaned";
 	let cleanedHtml: string | undefined;
@@ -77,7 +75,7 @@ export function extractHtml(html: string, input: NormalizedParams, finalUrl: str
 	if (input.scope === "main") {
 		const readable = extractReadableArticle(sourceScope, baseUrl);
 		if (readable) {
-			const candidate = cleanHtmlFragment(readable.content, baseUrl, input);
+			const candidate = cleanHtmlFragment(readable.content, baseUrl);
 			readabilityTitle = readable.title;
 			if (readableTextLength(candidate) >= 80) {
 				cleanedHtml = candidate;
@@ -106,13 +104,8 @@ export function extractHtml(html: string, input: NormalizedParams, finalUrl: str
 	};
 }
 
-function applyExtractionOptions(scopeElement: Element, input: NormalizedParams): void {
-	if (input.foldables === "ignore") {
-		removeElements(scopeElement, "details");
-	}
-	if (input.hidden === "exclude") {
-		removeHiddenElements(scopeElement);
-	}
+function applyStaticCleanup(scopeElement: Element): void {
+	removeHiddenElements(scopeElement);
 }
 
 function extractReadableArticle(scopeElement: Element, baseUrl: string): { title?: string; content: string } | undefined {
@@ -140,11 +133,11 @@ function cleanScopeHtml(scopeElement: Element, baseUrl: string, scope: Scope): s
 	return normalizeHtml(clone.innerHTML || clone.textContent || "");
 }
 
-function cleanHtmlFragment(html: string, baseUrl: string, input: NormalizedParams): string {
+function cleanHtmlFragment(html: string, baseUrl: string): string {
 	const dom = createDom(`<body>${stripRawNoise(html)}</body>`, baseUrl);
 	const body = dom.window.document.body;
 	stripNoise(body);
-	applyExtractionOptions(body, input);
+	applyStaticCleanup(body);
 	rewriteRelativeUrls(body, baseUrl);
 	return normalizeHtml(body.innerHTML || body.textContent || "");
 }

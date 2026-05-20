@@ -7,8 +7,6 @@ export function assessExtractionQuality(input: {
 	output: string;
 	foldablesDetected: number;
 	foldablesIgnored: number;
-	/** True when the HTML came from a rendered browser page rather than a static response. */
-	browserRendered?: boolean;
 }): WebFetchQuality {
 	const rawBytes = Buffer.byteLength(input.rawHtml, "utf8");
 	const outputChars = input.output.replace(/\s+/g, " ").trim().length;
@@ -38,7 +36,7 @@ export function assessExtractionQuality(input: {
 		sparseOutput,
 		navHeavyOutput,
 		foldablesBlocked,
-		browserRecommended: !input.browserRendered && reasons.length > 0,
+		browserRecommended: reasons.length > 0,
 		reasons,
 	};
 }

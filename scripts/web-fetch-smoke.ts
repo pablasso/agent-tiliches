@@ -82,6 +82,24 @@ const accordionContainerHtml = `<!doctype html>
 </body>
 </html>`;
 
+const appShellHtml = `<!doctype html>
+<html>
+<head>
+  <title>Client App Shell Test</title>
+  <script id="__NEXT_DATA__" type="application/json">{"props":{}}</script>
+  ${Array.from({ length: 11 }, (_, index) => `<script>window.appChunk${index} = true;</script>`).join("\n  ")}
+</head>
+<body>
+  <div id="root">
+    <nav>
+      <a>Home</a>
+      <a>Jobs</a>
+      <a>Students</a>
+    </nav>
+  </div>
+</body>
+</html>`;
+
 const server = createServer((req, res) => {
 	if (req.url === "/slow") {
 		res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
@@ -107,6 +125,10 @@ const server = createServer((req, res) => {
 		res.end(accordionContainerHtml);
 		return;
 	}
+	if (req.url === "/app-shell") {
+		res.end(appShellHtml);
+		return;
+	}
 	res.end(html);
 });
 
@@ -128,20 +150,6 @@ try {
 	assert.equal(result.details.hidden.included, 0);
 	assert.equal(result.details.quality.browserRecommended, false);
 
-	const includeFoldables = await runWebFetch({ url: baseUrl, format: "markdown", scope: "main", foldables: "include" });
-	assert.match(includeFoldables.output, /Hidden Secret/);
-	assert.equal(includeFoldables.details.foldables.included, 2);
-	assert.equal(includeFoldables.details.foldables.controlledPanelsIncluded, 1);
-	assert.equal(includeFoldables.details.hidden.included, 1);
-
-	const noFoldables = await runWebFetch({ url: baseUrl, format: "markdown", scope: "main", foldables: "ignore" });
-	assert.doesNotMatch(noFoldables.output, /Folded Answer/);
-	assert.equal(noFoldables.details.foldables.included, 0);
-
-	const withHidden = await runWebFetch({ url: baseUrl, format: "markdown", scope: "main", hidden: "main" });
-	assert.match(withHidden.output, /Hidden Secret/);
-	assert.equal(withHidden.details.hidden.included, 1);
-
 	const article = await runWebFetch({ url: new URL("article", baseUrl).toString(), format: "markdown", scope: "main" });
 	assert.equal(article.details.extraction, "html-readability");
 	assert.match(article.output, /## Readable Article/);
@@ -157,26 +165,23 @@ try {
 	assert.doesNotMatch(bodyScope.output, /Navigation panel/);
 	assert.doesNotMatch(bodyScope.output, /Body controlled panel/);
 
-	const bodyScopeIncluded = await runWebFetch({
-		url: new URL("body-scope", baseUrl).toString(),
-		format: "markdown",
-		scope: "main",
-		foldables: "include",
-	});
-	assert.match(bodyScopeIncluded.output, /Body controlled panel content/);
-	assert.doesNotMatch(bodyScopeIncluded.output, /Navigation panel/);
-	assert.equal(bodyScopeIncluded.details.foldables.controlledPanelsIncluded, 1);
-
 	const accordionContainer = await runWebFetch({
 		url: new URL("accordion-container", baseUrl).toString(),
 		format: "markdown",
 		scope: "main",
-		foldables: "include",
 	});
 	assert.equal(accordionContainer.details.foldables.detected, 2);
-	assert.equal(accordionContainer.details.foldables.controlledPanelsIncluded, 2);
-	assert.match(accordionContainer.output, /Panel one text/);
-	assert.match(accordionContainer.output, /Panel two text/);
+	assert.equal(accordionContainer.details.foldables.included, 0);
+	assert.equal(accordionContainer.details.foldables.ignored, 2);
+	assert.equal(accordionContainer.details.hidden.detected, 2);
+	assert.doesNotMatch(accordionContainer.output, /Panel one text/);
+	assert.doesNotMatch(accordionContainer.output, /Panel two text/);
+
+	const appShell = await runWebFetch({ url: new URL("app-shell", baseUrl).toString(), format: "markdown", scope: "main" });
+	assert.equal(appShell.details.quality.clientRenderedMarkers, true);
+	assert.equal(appShell.details.browserRecommended, true);
+	assert.match(appShell.details.browserReason ?? "", /client\/deferred rendering/);
+	assert.match(appShell.details.warnings.join("\n"), /Browser navigation recommended/);
 
 	let timedOut = false;
 	try {
