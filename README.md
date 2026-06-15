@@ -21,6 +21,7 @@ After installing, reload Pi resources with `/reload` or restart Pi.
 ## Layout
 
 - `extensions/` - TypeScript Pi extensions and tools
+  - `comment/` - `/comment` opens the latest assistant message in `$VISUAL`/`$EDITOR` so you can annotate it and send feedback back into the session
   - `diff-review/` - `/diff-review` native diff review window powered by Glimpse and Monaco; based on Badlogic's [`pi-diff-review`](https://github.com/badlogic/pi-diff-review)
   - `web-fetch/` - static URL fetch/readable extraction with warnings when browser navigation may be needed
 - `skills/` - Agent Skills-compatible skills
