@@ -25,6 +25,7 @@ After installing, reload Pi resources with `/reload` or restart Pi.
   - `diff-review/` - `/diff-review` native diff review window powered by Glimpse and Monaco; based on Badlogic's [`pi-diff-review`](https://github.com/badlogic/pi-diff-review)
   - `web-fetch/` - static URL fetch/readable extraction with warnings when browser navigation may be needed
 - `skills/` - Agent Skills-compatible skills
+  - `browser-tools/` - navigate and debug web pages through Playwright CLI, with checked setup and optional user-approved current-browser attachment via the Playwright Extension
   - `youtube-transcript/` - fetch timestamped YouTube transcripts via `youtube-transcript-plus`; based on Badlogic's [`youtube-transcript` skill](https://github.com/badlogic/pi-skills/tree/main/youtube-transcript) from [`badlogic/pi-skills`](https://github.com/badlogic/pi-skills)
 - `prompts/` - Pi prompt templates
 - `themes/` - Pi themes

@@ -1,0 +1,375 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+CLI_CMD=()
+
+print_missing_cli() {
+  cat >&2 <<EOF
+browser-tools: Playwright CLI is not installed or not on PATH.
+
+Install one of these before using browser-tools:
+
+  # Preferred: install the skill-local dependency
+  cd "$BASE_DIR" && npm install
+
+  # Or install globally
+  npm install -g @playwright/cli@latest
+
+Then verify:
+
+  "$BASE_DIR/browser-tools" doctor
+EOF
+}
+
+check_node() {
+  if ! command -v node >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+browser-tools: Node.js is required but was not found.
+
+Install Node.js 18 or newer, then rerun browser-tools doctor.
+Recommended options:
+  - mise:  mise use -g node@latest
+  - nvm:   nvm install --lts
+  - Homebrew macOS: brew install node
+EOF
+    return 1
+  fi
+
+  local major
+  major=$(node -p "Number(process.versions.node.split('.')[0])" 2>/dev/null || echo 0)
+  if [ "${major:-0}" -lt 18 ]; then
+    cat >&2 <<EOF
+browser-tools: Node.js 18 or newer is required; found $(node -v).
+
+Upgrade Node.js, then rerun browser-tools doctor.
+Recommended options:
+  - mise:  mise use -g node@latest
+  - nvm:   nvm install --lts
+  - Homebrew macOS: brew upgrade node
+EOF
+    return 1
+  fi
+}
+
+check_npm() {
+  if ! command -v npm >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+browser-tools: npm was not found.
+
+npm is needed to install Playwright CLI if it is missing. Install Node.js/npm,
+then run one of:
+  cd <skill-dir> && npm install
+  npm install -g @playwright/cli@latest
+EOF
+    return 1
+  fi
+}
+
+resolve_cli() {
+  CLI_CMD=()
+
+  if [ -x "$BASE_DIR/node_modules/.bin/playwright-cli" ]; then
+    CLI_CMD=("$BASE_DIR/node_modules/.bin/playwright-cli")
+    return 0
+  fi
+
+  if command -v playwright-cli >/dev/null 2>&1; then
+    CLI_CMD=("playwright-cli")
+    return 0
+  fi
+
+  if command -v npx >/dev/null 2>&1 && npx --no-install playwright-cli --version >/dev/null 2>&1; then
+    CLI_CMD=("npx" "--no-install" "playwright-cli")
+    return 0
+  fi
+
+  return 1
+}
+
+check_cli() {
+  if ! resolve_cli; then
+    print_missing_cli
+    return 1
+  fi
+
+  if ! "${CLI_CMD[@]}" --version >/dev/null 2>&1; then
+    cat >&2 <<EOF
+browser-tools: found Playwright CLI but it did not run successfully.
+
+Resolved command: ${CLI_CMD[*]}
+Try reinstalling it:
+  cd "$BASE_DIR" && npm install
+or:
+  npm install -g @playwright/cli@latest
+EOF
+    return 1
+  fi
+}
+
+install_browsers_hint() {
+  cat >&2 <<EOF
+
+If the failure says a browser executable is missing, install Playwright browsers:
+
+  # For the skill-local install
+  cd "$BASE_DIR" && npx playwright install chromium
+
+  # Or generally from the current project
+  npx playwright install chromium
+EOF
+}
+
+launch_check() {
+  local session="browser-tools-doctor-$$"
+  local tmp_out tmp_err status
+  tmp_out=$(mktemp -t browser-tools-doctor-out.XXXXXX)
+  tmp_err=$(mktemp -t browser-tools-doctor-err.XXXXXX)
+  status=0
+
+  if "${CLI_CMD[@]}" -s="$session" open about:blank >"$tmp_out" 2>"$tmp_err"; then
+    status=0
+  else
+    status=$?
+    cat >&2 <<EOF
+browser-tools: Playwright CLI is installed, but a browser launch check failed.
+
+Command: ${CLI_CMD[*]} -s=$session open about:blank
+EOF
+    if [ -s "$tmp_err" ]; then
+      echo >&2
+      echo "stderr:" >&2
+      tail -80 "$tmp_err" >&2 || true
+    fi
+    if [ -s "$tmp_out" ]; then
+      echo >&2
+      echo "stdout:" >&2
+      tail -40 "$tmp_out" >&2 || true
+    fi
+    install_browsers_hint
+  fi
+
+  "${CLI_CMD[@]}" -s="$session" close >/dev/null 2>&1 || true
+  rm -f "$tmp_out" "$tmp_err"
+  return "$status"
+}
+
+arc_status() {
+  if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ]; then
+    if [ -d "/Applications/Arc.app" ] || [ -d "$HOME/Applications/Arc.app" ]; then
+      echo "found"
+    else
+      echo "not-found"
+    fi
+  else
+    echo "unknown"
+  fi
+}
+
+print_current_session_notes() {
+  local arc
+  arc=$(arc_status)
+  cat <<'EOF'
+
+Current authenticated browser session prerequisites:
+  1. Install the Playwright Extension in the browser/profile you want to use:
+     https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm
+  2. Open the target tab and log in manually.
+  3. Only after the user explicitly asks for current-session access or confirms it, run:
+       browser-tools attach-current --confirmed --session=<name>
+  4. Approve the extension connection and select the tab in the browser UI.
+
+Security note: attaching to a current browser session exposes authenticated pages,
+cookies, localStorage, and other private state. Do not inspect or dump secrets unless
+explicitly requested.
+EOF
+
+  case "$arc" in
+    found)
+      cat <<'EOF'
+
+Arc note: Arc.app was found. Arc is Chromium-based and normally supports Chrome Web
+Store extensions, so it should be fine: install the Playwright Extension in Arc. If
+attach does not discover or connect to Arc, retry from Chrome/Edge/Chromium.
+EOF
+      ;;
+    not-found)
+      cat <<'EOF'
+
+Arc note: Arc.app was not found in /Applications or ~/Applications. Arc is Chromium-
+based and normally supports Chrome Web Store extensions; if you use Arc from another
+location, install the Playwright Extension there. If attach fails, retry from
+Chrome/Edge/Chromium.
+EOF
+      ;;
+    *)
+      cat <<'EOF'
+
+Arc note: Arc is Chromium-based and normally supports Chrome Web Store extensions;
+install the Playwright Extension in Arc. If attach fails, retry from Chrome/Edge/
+Chromium.
+EOF
+      ;;
+  esac
+}
+
+doctor() {
+  local launch=true
+  local current_session=false
+
+  for arg in "$@"; do
+    case "$arg" in
+      --no-launch-check) launch=false ;;
+      --current-session|--extension|--attach-current) current_session=true ;;
+      -h|--help)
+        cat <<EOF
+Usage: $BASE_DIR/browser-tools doctor [--no-launch-check] [--current-session]
+
+Checks Node.js, npm, Playwright CLI, and by default a minimal about:blank browser launch.
+Use --current-session to also print extension/current-browser setup requirements.
+EOF
+        return 0
+        ;;
+      *)
+        echo "browser-tools doctor: unknown option: $arg" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  check_node
+  check_npm
+  check_cli
+
+  echo "browser-tools: Node.js OK: $(node -v)"
+  echo "browser-tools: npm OK: $(npm -v)"
+  echo "browser-tools: Playwright CLI OK: $("${CLI_CMD[@]}" --version 2>/dev/null)"
+  echo "browser-tools: Playwright CLI command: ${CLI_CMD[*]}"
+
+  if [ "$launch" = true ]; then
+    launch_check
+    echo "browser-tools: browser launch check OK"
+  fi
+
+  if [ "$current_session" = true ]; then
+    print_current_session_notes
+  fi
+}
+
+attach_current() {
+  local confirmed=false
+  local session=""
+  local extra=()
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --confirmed)
+        confirmed=true
+        shift
+        ;;
+      --session=*)
+        session="${1#--session=}"
+        shift
+        ;;
+      --session|-s)
+        if [ "$#" -lt 2 ]; then
+          echo "browser-tools attach-current: $1 requires a value" >&2
+          return 2
+        fi
+        session="$2"
+        shift 2
+        ;;
+      -s=*)
+        session="${1#-s=}"
+        shift
+        ;;
+      -h|--help)
+        cat <<EOF
+Usage: $BASE_DIR/browser-tools attach-current --confirmed [--session=<name>]
+
+Attaches Playwright CLI to a user-approved current browser tab via the Playwright
+Extension. Only use after the user explicitly requested current-session access or
+confirmed it.
+EOF
+        return 0
+        ;;
+      *)
+        extra+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  if [ "$confirmed" != true ]; then
+    cat >&2 <<'EOF'
+browser-tools: refusing to attach to the current browser session without confirmation.
+
+Current-session attach can expose authenticated/private browser state. Ask the user
+for confirmation first, then rerun with:
+  browser-tools attach-current --confirmed --session=<name>
+EOF
+    return 2
+  fi
+
+  check_node
+  check_cli
+
+  local session_arg=()
+  if [ -n "$session" ]; then
+    session_arg=("-s=$session")
+  fi
+
+  if ! "${CLI_CMD[@]}" "${session_arg[@]}" attach --extension=chrome "${extra[@]}"; then
+    cat >&2 <<EOF
+
+browser-tools: attach via Playwright Extension failed.
+
+Make sure:
+  1. The Playwright Extension is installed in the browser/profile you want to use:
+     https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm
+  2. The target tab is open and logged in.
+  3. You approved the connection and selected the tab in the browser UI.
+  4. For Arc: install the extension in Arc. If Arc attach still fails, retry in
+     Chrome/Edge/Chromium.
+EOF
+    return 1
+  fi
+}
+
+main() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    ""|-h|--help)
+      cat <<EOF
+browser-tools: checked wrapper around Playwright CLI for Pi skills.
+
+Usage:
+  $BASE_DIR/browser-tools doctor [--current-session]
+  $BASE_DIR/browser-tools attach-current --confirmed [--session=<name>]
+  $BASE_DIR/browser-tools <playwright-cli args...>
+
+Examples:
+  $BASE_DIR/browser-tools doctor
+  $BASE_DIR/browser-tools open https://example.com
+  $BASE_DIR/browser-tools snapshot
+  $BASE_DIR/browser-tools attach-current --confirmed --session=current
+  $BASE_DIR/browser-tools -s=current snapshot
+EOF
+      ;;
+    doctor)
+      shift
+      doctor "$@"
+      ;;
+    attach-current|current-session)
+      shift
+      attach_current "$@"
+      ;;
+    *)
+      check_node
+      check_cli
+      exec "${CLI_CMD[@]}" "$@"
+      ;;
+  esac
+}
+
+main "$@"

@@ -1,0 +1,14 @@
+{
+  "name": "browser-tools-skill",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-contained Playwright CLI dependency for the browser-tools Pi skill.",
+  "scripts": {
+    "doctor": "./browser-tools doctor",
+    "install-browsers": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "@playwright/cli": "^0.1.14"
+  }
+}
