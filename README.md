@@ -21,9 +21,13 @@ After installing, reload Pi resources with `/reload` or restart Pi.
 ## Layout
 
 - `extensions/` - TypeScript Pi extensions and tools
-  - `diff-review/` - `/diff` browser-based local diff review UI that includes untracked files and prefills Pi with review comments
+  - `diff-review/` - `/diff-review` native diff review window powered by Glimpse and Monaco; based on Badlogic's [`pi-diff-review`](https://github.com/badlogic/pi-diff-review)
   - `web-fetch/` - static URL fetch/readable extraction with warnings when browser navigation may be needed
 - `skills/` - Agent Skills-compatible skills
   - `youtube-transcript/` - fetch timestamped YouTube transcripts via `youtube-transcript-plus`; based on Badlogic's [`youtube-transcript` skill](https://github.com/badlogic/pi-skills/tree/main/youtube-transcript) from [`badlogic/pi-skills`](https://github.com/badlogic/pi-skills)
 - `prompts/` - Pi prompt templates
 - `themes/` - Pi themes
+
+## Attribution
+
+The `extensions/diff-review` implementation is adapted from Badlogic's [`pi-diff-review`](https://github.com/badlogic/pi-diff-review) at commit `57622138f5b02896a230b4fbfe702d24c6a515bb`.
