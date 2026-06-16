@@ -98,7 +98,14 @@ Before current-session attach, run the Chrome tooling check:
 {baseDir}/browser-tools doctor --current-session
 ```
 
-Then attach only with the confirmation guard:
+Prefer reusing an existing attached session before creating a new one:
+
+```bash
+{baseDir}/browser-tools list
+{baseDir}/browser-tools -s=current snapshot
+```
+
+If no suitable session exists, attach only with the confirmation guard:
 
 ```bash
 {baseDir}/browser-tools attach-current --confirmed --session=current
@@ -117,11 +124,16 @@ Optional token storage for repeated current-session attach:
 - This path is ignored by git via `.pi/cache`; do not print or commit the token.
 - The wrapper auto-loads this file when running `attach-current`. Override with `BROWSER_TOOLS_EXTENSION_ENV=/path/to/extension.env` if needed.
 
-Continue using that named session:
+Continue using that named session across follow-up user requests:
 
 ```bash
 {baseDir}/browser-tools -s=current snapshot
 {baseDir}/browser-tools -s=current click e12
+```
+
+Keep current Chrome sessions attached by default. Do **not** detach or close after finishing a task unless the user asks, the page is sensitive, or cleanup is clearly required. When the user asks to disconnect, prefer `detach` so Chrome remains open:
+
+```bash
 {baseDir}/browser-tools -s=current detach
 ```
 
