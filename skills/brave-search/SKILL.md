@@ -35,7 +35,10 @@ npm install
 {baseDir}/search.js "query" --content        # include readable page content
 {baseDir}/search.js "query" --country DE     # country-specific results
 {baseDir}/search.js "query" --freshness pw   # past week
+{baseDir}/search.js "+pablasso"             # force an exact term
 ```
+
+If a single-token query returns only fuzzy matches, the tool prints a hint suggesting `+term` for exact username/package/code searches.
 
 Options:
 

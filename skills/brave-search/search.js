@@ -24,6 +24,7 @@ function usage(exitCode = 0) {
   stream('  search.js "rust programming" -n 10');
   stream('  search.js "news today" --freshness pd');
   stream('  search.js "pi coding agent docs" --content');
+  stream('  search.js "+pablasso"  # force an exact term');
   process.exit(exitCode);
 }
 
@@ -129,6 +130,28 @@ function printResults(results) {
   });
 }
 
+function shouldShowExactHint(query, results) {
+  const trimmedQuery = query.trim();
+  const isSinglePlainToken = /^[^\s+\":()]+$/.test(trimmedQuery);
+  if (!isSinglePlainToken) return false;
+
+  const needle = trimmedQuery.toLowerCase();
+  return !results.some((result) =>
+    [result.title, result.url, result.description, result.content]
+      .filter(Boolean)
+      .some((field) => field.toLowerCase().includes(needle)),
+  );
+}
+
+function printExactHint(query, results) {
+  if (!shouldShowExactHint(query, results)) return;
+
+  console.error(
+    `Hint: none of the returned results include the exact term "${query}". ` +
+      `For username/package/code searches, try forcing the term with: +${query}`,
+  );
+}
+
 try {
   const { query, options } = parseArgs(process.argv.slice(2));
   const results = await searchBrave(query, options);
@@ -154,6 +177,7 @@ try {
   }
 
   printResults(results);
+  printExactHint(query, results);
 } catch (error) {
   console.error(`Error: ${error.message}`);
   process.exit(1);
