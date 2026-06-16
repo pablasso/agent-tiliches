@@ -1,6 +1,6 @@
 ---
 name: browser-tools
-description: Navigate and debug web pages with Playwright CLI. Use for browser automation, local web-app debugging, screenshots, snapshots, console/network inspection, tracing, video, storage state, and optional user-approved attachment to an existing authenticated Chrome/Edge/Chromium/Arc browser session via the Playwright Extension.
+description: Navigate and debug web pages with Playwright CLI. Use for browser automation, local web-app debugging, screenshots, snapshots, console/network inspection, tracing, video, storage state, and optional user-approved attachment to an existing authenticated Chrome browser session via the Playwright Extension.
 ---
 # Browser Tools
 
@@ -27,6 +27,16 @@ Use the wrapper for all commands instead of calling `playwright-cli` directly:
 ```bash
 {baseDir}/browser-tools <playwright-cli args...>
 ```
+
+## Output/artifact location
+
+The wrapper sets `PLAYWRIGHT_MCP_OUTPUT_DIR` by default so Playwright CLI does not create `.playwright-cli/` in every project. Artifacts go to a per-workspace cache:
+
+```text
+~/.cache/pi/browser-tools/<workspace-name>-<hash>/
+```
+
+Respect a user override if `PLAYWRIGHT_MCP_OUTPUT_DIR` is already set. If the user explicitly wants project-local artifacts, set it to a git-ignored path such as `.pi/cache/browser-tools/playwright-output` for that command/session.
 
 ## Setup if tooling is missing
 
@@ -57,13 +67,13 @@ npx playwright install chromium
 
 ### Default: normal Playwright session
 
-Use a normal Playwright CLI session unless the user explicitly asks to use their current browser/current login/current authenticated session. Playwright CLI is headless by default; do **not** add `--headed` unless the user asks to see the browser, the task requires visual/manual observation, or showing the browser would clearly help and you tell the user first.
+Use a normal Playwright CLI session unless the user explicitly asks to use their current Chrome browser/current login/current authenticated session. Playwright CLI is headless by default; do **not** add `--headed` unless the user asks to see the browser, the task requires visual/manual observation, or showing the browser would clearly help and you tell the user first.
 
 Important distinction:
 
 - normal Playwright CLI launches a Playwright-managed browser process/profile, usually headless and separate from the user's everyday browser state
-- `--headed` makes that Playwright-managed browser visible, but it is still not the user's current logged-in Arc/Chrome tab
-- `attach-current` / `attach --extension=chrome` connects to an existing user-approved browser tab through the Playwright Extension
+- `--headed` makes that Playwright-managed browser visible, but it is still not the user's current logged-in Chrome tab
+- `attach-current` / `attach --extension=chrome` connects to an existing user-approved Chrome tab through the Playwright Extension
 
 Good for:
 
@@ -73,16 +83,16 @@ Good for:
 - tracing and video capture
 - generating locators or validating flows
 
-### Current authenticated browser session
+### Current authenticated Chrome session
 
-Only attach to the user's existing browser session when:
+Only attach to the user's existing Chrome session when:
 
 - the user explicitly requests it, or
 - you ask for confirmation and the user confirms.
 
-Never proactively attach to a current session without confirmation. It can expose authenticated pages, cookies, localStorage, tokens, private data, and browser history. Minimize inspection and do not dump cookies/storage/secrets unless explicitly requested.
+Never proactively attach to a current Chrome session without confirmation. It can expose authenticated pages, cookies, localStorage, tokens, private data, and browser history. Minimize inspection and do not dump cookies/storage/secrets unless explicitly requested.
 
-Before current-session attach, run:
+Before current-session attach, run the Chrome tooling check:
 
 ```bash
 {baseDir}/browser-tools doctor --current-session
@@ -94,6 +104,19 @@ Then attach only with the confirmation guard:
 {baseDir}/browser-tools attach-current --confirmed --session=current
 ```
 
+Optional token storage for repeated current-session attach:
+
+- If the Chrome extension displays a `PLAYWRIGHT_MCP_EXTENSION_TOKEN`, store it in `{baseDir}/../../.pi/cache/browser-tools/extension.env`.
+- File contents:
+
+  ```bash
+  PLAYWRIGHT_MCP_EXTENSION_TOKEN=your-token-here
+  ```
+
+- Restrict permissions with `chmod 600 {baseDir}/../../.pi/cache/browser-tools/extension.env`.
+- This path is ignored by git via `.pi/cache`; do not print or commit the token.
+- The wrapper auto-loads this file when running `attach-current`. Override with `BROWSER_TOOLS_EXTENSION_ENV=/path/to/extension.env` if needed.
+
 Continue using that named session:
 
 ```bash
@@ -102,13 +125,13 @@ Continue using that named session:
 {baseDir}/browser-tools -s=current detach
 ```
 
-### Arc note
+## Chrome extension setup
 
-Arc is Chromium-based and normally supports Chrome Web Store extensions, so it should be fine for current-session access. Install the Playwright Extension in Arc:
+Install the Playwright Extension in Chrome:
 
 https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm
 
-If attach does not discover or connect to Arc, retry from Chrome, Edge, or Chromium.
+Use Chrome for current-session attach. Other browsers are intentionally not supported by this wrapper to keep the workflow minimal and predictable.
 
 ## Navigation workflow
 

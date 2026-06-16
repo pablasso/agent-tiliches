@@ -2,7 +2,46 @@
 set -euo pipefail
 
 BASE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$BASE_DIR/../.." && pwd)
 CLI_CMD=()
+PLAYWRIGHT_EXTENSION_ID="mmlmfjhmonkocbjadbfplnigmagldckm"
+PLAYWRIGHT_EXTENSION_URL="https://chromewebstore.google.com/detail/playwright-extension/$PLAYWRIGHT_EXTENSION_ID"
+DEFAULT_EXTENSION_ENV_FILE="$REPO_ROOT/.pi/cache/browser-tools/extension.env"
+
+workspace_cache_base() {
+  if [ -n "${XDG_CACHE_HOME:-}" ]; then
+    echo "$XDG_CACHE_HOME/pi/browser-tools"
+  else
+    echo "$HOME/.cache/pi/browser-tools"
+  fi
+}
+
+workspace_cache_key() {
+  local cwd name hash
+  cwd=$(pwd -P)
+  name=$(printf '%s' "$(basename "$cwd")" | tr -c '[:alnum:]_.-' '-')
+  if command -v shasum >/dev/null 2>&1; then
+    hash=$(printf '%s' "$cwd" | shasum -a 256 | awk '{print substr($1,1,16)}')
+  else
+    hash=$(printf '%s' "$cwd" | cksum | awk '{print $1}')
+  fi
+  echo "$name-$hash"
+}
+
+browser_tools_output_dir() {
+  if [ -n "${PLAYWRIGHT_MCP_OUTPUT_DIR:-}" ]; then
+    echo "$PLAYWRIGHT_MCP_OUTPUT_DIR"
+  else
+    echo "$(workspace_cache_base)/$(workspace_cache_key)"
+  fi
+}
+
+trim_spaces() {
+  local s="$1"
+  s="${s#"${s%%[![:space:]]*}"}"
+  s="${s%"${s##*[![:space:]]}"}"
+  printf '%s' "$s"
+}
 
 print_missing_cli() {
   cat >&2 <<EOF
@@ -127,7 +166,9 @@ launch_check() {
   tmp_err=$(mktemp -t browser-tools-doctor-err.XXXXXX)
   status=0
 
-  if "${CLI_CMD[@]}" -s="$session" open about:blank >"$tmp_out" 2>"$tmp_err"; then
+  local env_cmd=(env "PLAYWRIGHT_MCP_OUTPUT_DIR=$(browser_tools_output_dir)")
+
+  if "${env_cmd[@]}" "${CLI_CMD[@]}" -s="$session" open about:blank >"$tmp_out" 2>"$tmp_err"; then
     status=0
   else
     status=$?
@@ -149,68 +190,113 @@ EOF
     install_browsers_hint
   fi
 
-  "${CLI_CMD[@]}" -s="$session" close >/dev/null 2>&1 || true
+  "${env_cmd[@]}" "${CLI_CMD[@]}" -s="$session" close >/dev/null 2>&1 || true
   rm -f "$tmp_out" "$tmp_err"
   return "$status"
 }
 
-arc_status() {
-  if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ]; then
-    if [ -d "/Applications/Arc.app" ] || [ -d "$HOME/Applications/Arc.app" ]; then
-      echo "found"
-    else
-      echo "not-found"
-    fi
-  else
-    echo "unknown"
+chrome_user_data_dir() {
+  case "$(uname -s 2>/dev/null || true)" in
+    Darwin) echo "$HOME/Library/Application Support/Google/Chrome" ;;
+    Linux) echo "$HOME/.config/google-chrome" ;;
+    *) return 1 ;;
+  esac
+}
+
+extension_installed_in_user_data_dir() {
+  local user_data_dir="$1"
+  [ -d "$user_data_dir" ] || return 1
+  find "$user_data_dir" -path "*/Extensions/$PLAYWRIGHT_EXTENSION_ID" -type d -print -quit 2>/dev/null | grep -q .
+}
+
+load_extension_token() {
+  if [ -n "${PLAYWRIGHT_MCP_EXTENSION_TOKEN:-}" ]; then
+    return 0
   fi
+
+  local env_file="${BROWSER_TOOLS_EXTENSION_ENV:-$DEFAULT_EXTENSION_ENV_FILE}"
+  if [ ! -f "$env_file" ]; then
+    return 0
+  fi
+
+  local line key value
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ''|'#'*) continue ;;
+    esac
+    key="$(trim_spaces "${line%%=*}")"
+    if [ "$key" != "PLAYWRIGHT_MCP_EXTENSION_TOKEN" ]; then
+      continue
+    fi
+    value="$(trim_spaces "${line#*=}")"
+    if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+    if [ -n "$value" ]; then
+      export PLAYWRIGHT_MCP_EXTENSION_TOKEN="$value"
+    fi
+  done < "$env_file"
 }
 
 print_current_session_notes() {
-  local arc
-  arc=$(arc_status)
-  cat <<'EOF'
+  cat <<EOF
 
-Current authenticated browser session prerequisites:
-  1. Install the Playwright Extension in the browser/profile you want to use:
-     https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm
-  2. Open the target tab and log in manually.
+Current authenticated Chrome session prerequisites:
+  1. Install the Playwright Extension in Chrome:
+     $PLAYWRIGHT_EXTENSION_URL
+  2. Open the target tab in Chrome and log in manually if needed.
   3. Only after the user explicitly asks for current-session access or confirms it, run:
        browser-tools attach-current --confirmed --session=<name>
-  4. Approve the extension connection and select the tab in the browser UI.
+  4. Approve the extension connection and select the tab in the Chrome UI if prompted.
 
-Security note: attaching to a current browser session exposes authenticated pages,
+Optional token file to bypass repeated approval dialogs:
+  $DEFAULT_EXTENSION_ENV_FILE
+
+Security note: attaching to a current Chrome session exposes authenticated pages,
 cookies, localStorage, and other private state. Do not inspect or dump secrets unless
 explicitly requested.
 EOF
+}
 
-  case "$arc" in
-    found)
-      cat <<'EOF'
+check_current_chrome_session() {
+  local user_data_dir
+  user_data_dir=$(chrome_user_data_dir) || {
+    echo "browser-tools: Chrome user data directory is not supported on this platform." >&2
+    return 1
+  }
 
-Arc note: Arc.app was found. Arc is Chromium-based and normally supports Chrome Web
-Store extensions, so it should be fine: install the Playwright Extension in Arc. If
-attach does not discover or connect to Arc, retry from Chrome/Edge/Chromium.
+  echo "browser-tools: current-session browser: chrome"
+  echo "browser-tools: current-session user data dir: $user_data_dir"
+
+  if [ ! -d "$user_data_dir" ]; then
+    cat >&2 <<EOF
+browser-tools: Chrome profile data was not found.
+
+Expected Chrome data at:
+  $user_data_dir
+
+Install/open Chrome, install the Playwright Extension, then rerun:
+  $BASE_DIR/browser-tools doctor --current-session
 EOF
-      ;;
-    not-found)
-      cat <<'EOF'
+    return 1
+  fi
 
-Arc note: Arc.app was not found in /Applications or ~/Applications. Arc is Chromium-
-based and normally supports Chrome Web Store extensions; if you use Arc from another
-location, install the Playwright Extension there. If attach fails, retry from
-Chrome/Edge/Chromium.
-EOF
-      ;;
-    *)
-      cat <<'EOF'
+  if extension_installed_in_user_data_dir "$user_data_dir"; then
+    echo "browser-tools: Playwright Extension found for chrome"
+  else
+    cat >&2 <<EOF
+browser-tools: Playwright Extension was not found for Chrome.
 
-Arc note: Arc is Chromium-based and normally supports Chrome Web Store extensions;
-install the Playwright Extension in Arc. If attach fails, retry from Chrome/Edge/
-Chromium.
+Install it in Chrome from:
+  $PLAYWRIGHT_EXTENSION_URL
+
+Then open the target tab and rerun:
+  $BASE_DIR/browser-tools doctor --current-session
 EOF
-      ;;
-  esac
+    return 1
+  fi
 }
 
 doctor() {
@@ -225,8 +311,8 @@ doctor() {
         cat <<EOF
 Usage: $BASE_DIR/browser-tools doctor [--no-launch-check] [--current-session]
 
-Checks Node.js, npm, Playwright CLI, and by default a minimal about:blank browser launch.
-Use --current-session to also print extension/current-browser setup requirements.
+Checks Node.js, npm, Playwright CLI, output directory, and by default a minimal about:blank browser launch.
+Use --current-session to also verify Chrome + Playwright Extension setup.
 EOF
         return 0
         ;;
@@ -245,6 +331,7 @@ EOF
   echo "browser-tools: npm OK: $(npm -v)"
   echo "browser-tools: Playwright CLI OK: $("${CLI_CMD[@]}" --version 2>/dev/null)"
   echo "browser-tools: Playwright CLI command: ${CLI_CMD[*]}"
+  echo "browser-tools: output dir: $(browser_tools_output_dir)"
 
   if [ "$launch" = true ]; then
     launch_check
@@ -253,6 +340,7 @@ EOF
 
   if [ "$current_session" = true ]; then
     print_current_session_notes
+    check_current_chrome_session
   fi
 }
 
@@ -287,7 +375,7 @@ attach_current() {
         cat <<EOF
 Usage: $BASE_DIR/browser-tools attach-current --confirmed [--session=<name>]
 
-Attaches Playwright CLI to a user-approved current browser tab via the Playwright
+Attaches Playwright CLI to a user-approved current Chrome tab via the Playwright
 Extension. Only use after the user explicitly requested current-session access or
 confirmed it.
 EOF
@@ -302,7 +390,7 @@ EOF
 
   if [ "$confirmed" != true ]; then
     cat >&2 <<'EOF'
-browser-tools: refusing to attach to the current browser session without confirmation.
+browser-tools: refusing to attach to the current Chrome session without confirmation.
 
 Current-session attach can expose authenticated/private browser state. Ask the user
 for confirmation first, then rerun with:
@@ -313,24 +401,48 @@ EOF
 
   check_node
   check_cli
+  check_current_chrome_session
+  load_extension_token
 
-  local session_arg=()
+  local user_data_dir
+  user_data_dir=$(chrome_user_data_dir)
+
+  local cmd=("${CLI_CMD[@]}")
   if [ -n "$session" ]; then
-    session_arg=("-s=$session")
+    cmd+=("-s=$session")
+  fi
+  cmd+=("attach" "--extension=chrome")
+  if [ "${#extra[@]}" -gt 0 ]; then
+    cmd+=("${extra[@]}")
   fi
 
-  if ! "${CLI_CMD[@]}" "${session_arg[@]}" attach --extension=chrome "${extra[@]}"; then
+  local node_options="${NODE_OPTIONS:-}"
+  if [[ "$node_options" != *"--dns-result-order="* ]]; then
+    node_options="$(trim_spaces "$node_options --dns-result-order=ipv4first")"
+  fi
+
+  local env_cmd=(env \
+    "PWTEST_EXTENSION_USER_DATA_DIR=$user_data_dir" \
+    "PLAYWRIGHT_MCP_BROWSER=chrome" \
+    "NODE_OPTIONS=$node_options" \
+    "PLAYWRIGHT_MCP_OUTPUT_DIR=$(browser_tools_output_dir)")
+
+  if [ -n "${PLAYWRIGHT_MCP_EXTENSION_TOKEN:-}" ]; then
+    env_cmd+=("PLAYWRIGHT_MCP_EXTENSION_TOKEN=$PLAYWRIGHT_MCP_EXTENSION_TOKEN")
+  fi
+
+  if ! "${env_cmd[@]}" "${cmd[@]}"; then
     cat >&2 <<EOF
 
 browser-tools: attach via Playwright Extension failed.
 
 Make sure:
-  1. The Playwright Extension is installed in the browser/profile you want to use:
-     https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm
+  1. The Playwright Extension is installed in Chrome:
+     $PLAYWRIGHT_EXTENSION_URL
   2. The target tab is open and logged in.
-  3. You approved the connection and selected the tab in the browser UI.
-  4. For Arc: install the extension in Arc. If Arc attach still fails, retry in
-     Chrome/Edge/Chromium.
+  3. You approved the connection and selected the tab in the Chrome UI, or saved
+     PLAYWRIGHT_MCP_EXTENSION_TOKEN in:
+     $DEFAULT_EXTENSION_ENV_FILE
 EOF
     return 1
   fi
@@ -367,7 +479,7 @@ EOF
     *)
       check_node
       check_cli
-      exec "${CLI_CMD[@]}" "$@"
+      exec env "PLAYWRIGHT_MCP_OUTPUT_DIR=$(browser_tools_output_dir)" "${CLI_CMD[@]}" "$@"
       ;;
   esac
 }
