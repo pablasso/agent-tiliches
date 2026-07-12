@@ -28,5 +28,6 @@ After installing, reload Pi resources with `/reload` or restart Pi.
   - `browser-tools/` - navigate and debug web pages through Playwright CLI, with checked setup and optional user-approved current-browser attachment via the Playwright Extension
   - `youtube-transcript/` - fetch timestamped YouTube transcripts via `youtube-transcript-plus`
 - `prompts/` - Pi prompt templates
+  - `artifact.md` - `/artifact` distills a focused outcome into a durable, dated handoff document
 - `themes/` - Pi themes
 
