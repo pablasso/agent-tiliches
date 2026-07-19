@@ -68,17 +68,19 @@ try {
 	for (const severity of ["P0 Critical", "P1 High", "P2 Medium", "P3 Low"]) {
 		assert.match(reviewerPrompt, new RegExp(severity));
 	}
-	assert.match(reviewerPrompt, /smallest reasonable candidate fix/i);
+	assert.match(reviewerPrompt, /smallest credible candidate fix/i);
 	assert.match(reviewerPrompt, /advisory evidence/i);
-	assert.match(reviewerPrompt, /not the final action or cost-benefit judgment/i);
-	assert.match(reviewerPrompt, /fix involvement: TINY, SMALL, MEDIUM, or LARGE/i);
-	assert.match(reviewerPrompt, /expected footprint:/i);
-	assert.match(reviewerPrompt, /complexity drivers:/i);
-	assert.match(reviewerPrompt, /ongoing maintenance impact: DECREASES, NEUTRAL, or INCREASES/i);
-	assert.match(reviewerPrompt, /estimate confidence: HIGH, MEDIUM, or LOW/i);
 	assert.match(reviewerPrompt, /Do not assign FIX NOW, FOLLOW-UP, INVESTIGATE, or NO ACTION/);
-	assert.match(reviewerPrompt, /Do not provide time estimates or story points/);
+	assert.match(reviewerPrompt, /Fix involvement: SMALL/);
+	assert.match(reviewerPrompt, /at most five unique findings/i);
+	assert.match(reviewerPrompt, /Stop after the strongest five/i);
+	assert.match(reviewerPrompt, /Do not provide changed-line estimates, time estimates, story points, maintenance ratings, or estimate-confidence ratings/);
 	assert.match(reviewerPrompt, /smallest credible fix is large/i);
+	assert.doesNotMatch(reviewerPrompt, /- Expected footprint:/);
+	assert.doesNotMatch(reviewerPrompt, /- Complexity drivers:/);
+	assert.doesNotMatch(reviewerPrompt, /- Ongoing maintenance impact:/);
+	assert.doesNotMatch(reviewerPrompt, /- Estimate confidence:/);
+	assert.doesNotMatch(reviewerPrompt, /at most 12 findings/i);
 
 	const results: ReviewerResult[] = reviewers.map((reviewer, index) => ({
 		reviewer,
@@ -105,24 +107,30 @@ try {
 	assert.match(handoff, /FOLLOW-UP — recommended separately, not required now/);
 	assert.match(handoff, /INVESTIGATE — collect evidence; do not change code yet/);
 	assert.match(handoff, /NO ACTION — I recommend no work/);
-	assert.match(handoff, /Reviewer claim \(not my conclusion\)/);
-	assert.match(handoff, /Reviewer fix proposal\(s\) \(advisory\)/);
-	assert.match(handoff, /Fix I evaluated/);
-	assert.match(handoff, /My expected footprint/);
-	assert.match(handoff, /My fix involvement/);
-	assert.match(handoff, /My complexity drivers/);
-	assert.match(handoff, /My maintenance impact/);
-	assert.match(handoff, /My estimate confidence/);
-	assert.match(handoff, /Do not copy a reviewer estimate without verifying it/);
-	assert.match(handoff, /based on both the defect and the remedy’s implementation\/maintenance cost/);
-	assert.match(handoff, /reviewer claims and fix estimates are advisory evidence only/);
-	assert.match(handoff, /TINY \| SMALL \| MEDIUM \| LARGE \| N\/A/);
-	assert.match(handoff, /Do not provide time estimates or story points/);
-	assert.match(handoff, /FIX NOW and FOLLOW-UP are the only labels that recommend a code change/);
-	assert.match(handoff, /Every finding ID must appear exactly once/);
+	assert.match(handoff, /Reviewer claim:/);
+	assert.match(handoff, /Selected fix/);
+	assert.match(handoff, /Involvement/);
+	assert.match(handoff, /Trade-off/);
+	assert.match(handoff, /do not perform a second whole-patch review/i);
+	assert.match(handoff, /Use one focused verification path per claim/i);
+	assert.match(handoff, /cannot be established cheaply/i);
+	assert.match(handoff, /Only for FIX NOW, FOLLOW-UP, or a VALID\/PARTIALLY VALID NO ACTION/);
+	assert.match(handoff, /do not add fix estimates or N\/A fields to unsupported claims or investigations/i);
+	assert.match(handoff, /Give full detail only to FIX NOW, FOLLOW-UP/);
+	assert.match(handoff, /Summarize rejected\/unsupported claims in one or two lines/);
+	assert.match(handoff, /under 1,200 words/);
+	assert.match(handoff, /reviewer claims and candidate fixes are advisory/i);
+	assert.match(handoff, /Do not provide line-count, time, story-point, or estimate-confidence estimates/);
+	assert.match(handoff, /Put every finding ID once in the action list and once in detailed decisions/);
+	assert.match(handoff, /FIX NOW: implement the smallest complete fix before proceeding/);
+	assert.doesNotMatch(handoff, /Reviewer fix proposal\(s\)/);
+	assert.doesNotMatch(handoff, /My expected footprint/);
+	assert.doesNotMatch(handoff, /My complexity drivers/);
+	assert.doesNotMatch(handoff, /My maintenance impact/);
+	assert.doesNotMatch(handoff, /My estimate confidence/);
 	assert.doesNotMatch(handoff, /Consider later:/);
 	assert.doesNotMatch(handoff, /Proportionate action:/);
-	assert.match(handoff, /reject disproportionate remedies/i);
+	assert.match(handoff, /real issues assigned NO ACTION because the fix is disproportionate/i);
 	assert.match(handoff, /focus on regressions/);
 	assert.match(handoff, /snapshot\.diff/);
 	assert.match(handoff, /Reviewer Alpha \(local-provider\/model-alpha, effort: max\)/);
