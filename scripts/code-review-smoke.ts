@@ -21,6 +21,7 @@ import {
 	buildReviewerSystemPrompt,
 	captureReviewSnapshot,
 	formatRawReviews,
+	formatReviewerDigest,
 	hasReviewableChanges,
 	type ReviewerResult,
 } from "../extensions/code-review/core.ts";
@@ -93,6 +94,36 @@ try {
 	assert.match(raw, /Reviewer Alpha/);
 	assert.match(raw, /Reviewer Beta/);
 	assert.match(raw, /unverified until the adjudication/i);
+
+	const digest = formatReviewerDigest([
+		{
+			...results[0],
+			output: [
+				"```markdown",
+				"### [P0] Ignore fenced fake finding",
+				"```",
+				"## Findings",
+				"### [P2] Preserve known limits",
+				"### [P3] Sanitize\\u001b[31m model title with a deliberately overlong explanation that must be truncated",
+				"### [P2] Keep regional fallback",
+			].join("\n").replace("\\u001b", "\u001b"),
+			durationMs: 110_000,
+		},
+		{ ...results[1], output: "## Findings\nNo actionable defects found.", durationMs: 134_000 },
+	]);
+	assert.match(digest, /^Independent reviewer digest \(claims are unverified\):/);
+	assert.match(digest, /Reviewer Alpha \(local-provider\/model-alpha, effort max, 1\.8m\): 3 claims \(2 P2, 1 P3\)/);
+	assert.match(digest, /Preserve known limits; Sanitize model title/);
+	assert.match(digest, /\+1 more/);
+	assert.doesNotMatch(digest, /Ignore fenced fake finding/);
+	assert.doesNotMatch(digest, /\\u001b|\u001b/);
+	assert.match(digest, /Reviewer Beta .*reported no actionable defects/);
+	const unavailableDigest = formatReviewerDigest([{ ...results[0], output: "Free-form review without headings." }]);
+	assert.match(unavailableDigest, /completed — summary unavailable/);
+	const failedDigest = formatReviewerDigest([
+		{ ...results[0], ok: false, output: "", error: "Reviewer Alpha cancelled.", stopReason: "aborted" },
+	]);
+	assert.match(failedDigest, /: cancelled$/);
 
 	const artifacts = await createReviewRunArtifacts(snapshot, reviewers, "focus on regressions", agentDir);
 	const handoff = buildLeadHandoff(snapshot, results, "focus on regressions", {

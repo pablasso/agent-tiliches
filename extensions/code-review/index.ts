@@ -12,6 +12,7 @@ import {
 	buildLeadHandoff,
 	captureReviewSnapshot,
 	formatRawReviews,
+	formatReviewerDigest,
 	hasReviewableChanges,
 	type ReviewerResult,
 	type ReviewSnapshot,
@@ -150,7 +151,7 @@ export default function codeReviewExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			ctx.ui.notify("Independent reviews complete. The current implementation agent is adjudicating them now.", "info");
+			ctx.ui.notify(`${formatReviewerDigest(workflow.results)}\nLead adjudication started.`, "info");
 		},
 	});
 
