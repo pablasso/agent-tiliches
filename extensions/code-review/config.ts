@@ -17,7 +17,6 @@ export interface Reviewer {
 export interface CodeReviewConfig {
 	reviewers: Reviewer[];
 	extensions: string[];
-	leadThinking: ReviewThinkingLevel;
 }
 
 export function getCodeReviewConfigPath(agentDir = getAgentDir()): string {
@@ -30,7 +29,7 @@ export async function loadCodeReviewConfig(agentDir = getAgentDir()): Promise<Co
 	try {
 		source = await readFile(configPath, "utf8");
 	} catch (error) {
-		if (isNodeError(error) && error.code === "ENOENT") return { reviewers: [], extensions: [], leadThinking: "max" };
+		if (isNodeError(error) && error.code === "ENOENT") return { reviewers: [], extensions: [] };
 		throw new Error(`Could not read ${configPath}: ${error instanceof Error ? error.message : String(error)}`);
 	}
 
@@ -54,8 +53,7 @@ export async function loadCodeReviewConfig(agentDir = getAgentDir()): Promise<Co
 		identities.add(identity);
 	}
 	const extensions = parseStringArray(parsed.extensions, `${configPath}.extensions`);
-	const leadThinking = parseThinkingLevel(parsed.leadThinking, `${configPath}.leadThinking`, "max");
-	return { reviewers, extensions, leadThinking };
+	return { reviewers, extensions };
 }
 
 export function emptyConfigExample(): string {

@@ -3,10 +3,9 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { basename, join } from "node:path";
 import type { CodeReviewConfig } from "./config.ts";
 import type { Reviewer, ReviewerResult, ReviewSnapshot } from "./core.ts";
-import { buildAdjudicationPrompt, buildReviewerSystemPrompt, buildReviewerTask } from "./core.ts";
+import { buildReviewerSystemPrompt, buildReviewerTask } from "./core.ts";
 import {
 	createReviewerLogPaths,
-	getLeadLogPaths,
 	type ModelLogPaths,
 	type ReviewRunArtifacts,
 	writePrivate,
@@ -17,7 +16,7 @@ const MAX_STDERR_BYTES = 200 * 1_024;
 const MAX_MODEL_OUTPUT_BYTES = 128 * 1_024;
 const ACTIVE_CHILDREN = new Set<ChildProcess>();
 
-export type ReviewProgressState = "pending" | "in_progress" | "finished" | "failed" | "cancelled";
+export type ReviewProgressState = "pending" | "in_progress" | "finished" | "handed_off" | "failed" | "cancelled";
 
 export interface ReviewProgressUpdate {
 	id: string;
@@ -138,68 +137,6 @@ export async function runReviewersInParallel(
 			return { reviewer, ...run, logDir: logs.directory };
 		}),
 	);
-}
-
-export async function runAdjudicator(
-	model: { provider: string; id: string },
-	thinking: string,
-	snapshot: ReviewSnapshot,
-	results: ReviewerResult[],
-	focus: string,
-	artifacts: ReviewRunArtifacts,
-	config: Pick<CodeReviewConfig, "extensions">,
-	onProgress?: ReviewProgressCallback,
-	signal?: AbortSignal,
-): Promise<string> {
-	const systemPromptPath = join(artifacts.promptsDir, "lead-system.md");
-	const taskPath = join(artifacts.promptsDir, "lead-task.md");
-	const logs = getLeadLogPaths(artifacts);
-	const id = "lead-opinion";
-	const label = "Lead opinion";
-	const startedAt = Date.now();
-	onProgress?.({ id, label, state: "in_progress", startedAt, logDir: logs.directory });
-	let run: ModelRunResult;
-	try {
-		await Promise.all([
-			writePrivate(
-				systemPromptPath,
-				[
-					"You are the lead engineer responsible for a proportionate final code-review decision.",
-					"Be skeptical of reviewer claims and independently verify them with read-only repository tools.",
-					"Do not edit files, run shell commands, or implement fixes.",
-				].join("\n"),
-			),
-			writePrivate(taskPath, buildAdjudicationPrompt(snapshot, results, focus)),
-		]);
-		run = await runModel(
-			{ label: "Lead opinion", provider: model.provider, model: model.id, thinking },
-			snapshot.repoRoot,
-			systemPromptPath,
-			taskPath,
-			logs,
-			config.extensions,
-			signal,
-		);
-	} catch (error) {
-		run = {
-			ok: false,
-			output: "",
-			error: `Lead opinion could not start: ${error instanceof Error ? error.message : String(error)}`,
-			durationMs: Date.now() - startedAt,
-		};
-	}
-	const state: ReviewProgressState = signal?.aborted ? "cancelled" : run.ok ? "finished" : "failed";
-	onProgress?.({
-		id,
-		label,
-		state,
-		startedAt,
-		finishedAt: Date.now(),
-		detail: run.ok ? undefined : run.error,
-		logDir: logs.directory,
-	});
-	if (!run.ok) throw new Error(run.error || "Lead opinion produced no usable output.");
-	return run.output;
 }
 
 async function runModel(

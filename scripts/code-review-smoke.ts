@@ -1,10 +1,10 @@
 import { strict as assert } from "node:assert";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { CodeReviewProgressPanel } from "../extensions/code-review/progress.ts";
-import codeReviewExtension from "../extensions/code-review/index.ts";
+import codeReviewExtension, { LeadLifecycleTracker } from "../extensions/code-review/index.ts";
 import {
 	createReviewRunArtifacts,
 	finalizeReviewRun,
@@ -17,7 +17,7 @@ import {
 	type Reviewer,
 } from "../extensions/code-review/config.ts";
 import {
-	buildAdjudicationPrompt,
+	buildLeadHandoff,
 	buildReviewerSystemPrompt,
 	captureReviewSnapshot,
 	formatRawReviews,
@@ -29,7 +29,7 @@ const root = await mkdtemp(join(tmpdir(), "pi-code-review-smoke-"));
 const repo = join(root, "repo");
 const agentDir = join(root, "agent");
 try {
-	await run("mkdir", ["-p", repo, agentDir], root);
+	await Promise.all([mkdir(repo, { recursive: true }), mkdir(agentDir, { recursive: true })]);
 	await git(repo, ["init", "-q"]);
 	await git(repo, ["config", "user.email", "code-review@example.test"]);
 	await git(repo, ["config", "user.name", "Code Review Smoke"]);
@@ -49,7 +49,7 @@ try {
 	assert.match(snapshot.patch, /new file\.ts/);
 	assert.equal(hasReviewableChanges(snapshot), true);
 
-	assert.deepEqual(await loadCodeReviewConfig(agentDir), { reviewers: [], extensions: [], leadThinking: "max" });
+	assert.deepEqual(await loadCodeReviewConfig(agentDir), { reviewers: [], extensions: [] });
 	assert.match(emptyConfigExample(), /"reviewers": \[\]/);
 	const reviewers: Reviewer[] = [
 		{ name: "Reviewer Alpha", provider: "local-provider", model: "model-alpha", thinking: "max" },
@@ -57,13 +57,12 @@ try {
 	];
 	await writeFile(
 		getCodeReviewConfigPath(agentDir),
-		`${JSON.stringify({ reviewers, extensions: ["npm:local-provider-extension"], leadThinking: "xhigh" }, null, 2)}\n`,
+		`${JSON.stringify({ reviewers, extensions: ["npm:local-provider-extension"] }, null, 2)}\n`,
 		"utf8",
 	);
 	const config = await loadCodeReviewConfig(agentDir);
 	assert.deepEqual(config.reviewers, reviewers);
 	assert.deepEqual(config.extensions, ["npm:local-provider-extension"]);
-	assert.equal(config.leadThinking, "xhigh");
 
 	const reviewerPrompt = buildReviewerSystemPrompt();
 	for (const severity of ["P0 Critical", "P1 High", "P2 Medium", "P3 Low"]) {
@@ -84,17 +83,91 @@ try {
 	assert.match(raw, /Reviewer Beta/);
 	assert.match(raw, /unverified until the adjudication/i);
 
-	const adjudication = buildAdjudicationPrompt(snapshot, results, "focus on regressions");
-	assert.match(adjudication, /VALID, PARTIALLY VALID, NOT VALID, or NEEDS MORE EVIDENCE/);
-	assert.match(adjudication, /Reject disproportionate remedies/);
-	assert.match(adjudication, /focus on regressions/);
-	assert.match(adjudication, /Authoritative patch/);
-
 	const artifacts = await createReviewRunArtifacts(snapshot, reviewers, "focus on regressions", agentDir);
-	await finalizeReviewRun(artifacts, results, "# Lead opinion\n\nSafe to proceed.", raw, "completed");
+	const handoff = buildLeadHandoff(snapshot, results, "focus on regressions", {
+		runDir: artifacts.runDir,
+		handoffPath: artifacts.handoffPath,
+		lead: { provider: "local-provider", model: "model-lead", thinking: "xhigh" },
+	});
+	assert.match(handoff, /current implementation agent/i);
+	assert.match(handoff, /VALID, PARTIALLY VALID, NOT VALID, or NEEDS MORE EVIDENCE/);
+	assert.match(handoff, /reject disproportionate remedies/i);
+	assert.match(handoff, /focus on regressions/);
+	assert.match(handoff, /snapshot\.diff/);
+	assert.match(handoff, /Reviewer Alpha \(local-provider\/model-alpha, effort: max\)/);
+	assert.match(handoff, /Lead: current session local-provider\/model-lead \(effort: xhigh\)/);
+	assert.ok(Buffer.byteLength(handoff, "utf8") <= 64 * 1024);
+
+	await writeFile(artifacts.handoffPath, handoff, "utf8");
+	await finalizeReviewRun(artifacts, results, raw, { status: "handed_off" });
 	assert.equal(await findLatestReviewRun(agentDir), artifacts.runDir);
+	assert.match(await readFile(join(artifacts.runDir, "summary.md"), "utf8"), /Delegated to the current implementation session/);
+	await finalizeReviewRun(artifacts, results, raw, {
+		status: "completed",
+		opinion: "# Lead opinion\n\nSafe to proceed.",
+	});
 	assert.match(await readFile(join(artifacts.runDir, "summary.md"), "utf8"), /Safe to proceed/);
+	assert.match(await readFile(join(artifacts.runDir, "lead-opinion.md"), "utf8"), /Safe to proceed/);
 	assert.equal((await readFile(join(artifacts.runDir, "snapshot.diff"), "utf8")).includes("value = 2"), true);
+
+	const pendingLead = { runDir: artifacts.runDir };
+	const lifecycle = new LeadLifecycleTracker((runDir) => (runDir === pendingLead.runDir ? pendingLead : undefined));
+	lifecycle.arm(pendingLead);
+	lifecycle.observe([
+		leadHandoffMessage(pendingLead.runDir),
+		assistantMessage("Retryable partial output", "error", "rate limit 429"),
+	]);
+	lifecycle.observe([assistantMessage("# Lead opinion\n\nSafe after retry.", "stop")]);
+	assert.deepEqual(lifecycle.settle(), {
+		value: pendingLead,
+		finalization: { status: "completed", opinion: "# Lead opinion\n\nSafe after retry." },
+	});
+	assert.equal(lifecycle.settle(), null);
+
+	const startupFailureLifecycle = new LeadLifecycleTracker((runDir) =>
+		runDir === pendingLead.runDir ? pendingLead : undefined,
+	);
+	startupFailureLifecycle.arm(pendingLead);
+	startupFailureLifecycle.observe([assistantMessage("", "error", "provider initialization failed")]);
+	assert.deepEqual(startupFailureLifecycle.settle(), {
+		value: pendingLead,
+		finalization: {
+			status: "failed",
+			error: "Current-session adjudication failed: provider initialization failed",
+		},
+	});
+
+	const abortedLifecycle = new LeadLifecycleTracker((runDir) => (runDir === pendingLead.runDir ? pendingLead : undefined));
+	abortedLifecycle.observe([
+		leadHandoffMessage(pendingLead.runDir),
+		assistantMessage("# Lead opinion\n\nIncomplete", "aborted"),
+	]);
+	const aborted = abortedLifecycle.settle();
+	assert.equal(aborted?.finalization.status, "cancelled");
+	assert.equal(aborted?.finalization.opinion, undefined);
+	assert.equal(aborted?.finalization.partialOpinion, "# Lead opinion\n\nIncomplete");
+
+	const failedLifecycle = new LeadLifecycleTracker((runDir) => (runDir === pendingLead.runDir ? pendingLead : undefined));
+	failedLifecycle.observe([
+		leadHandoffMessage(pendingLead.runDir),
+		assistantMessage("# Lead opinion\n\nIncomplete failure", "error", "server error 503"),
+	]);
+	const failed = failedLifecycle.settle();
+	assert.equal(failed?.finalization.status, "failed");
+	assert.match(failed?.finalization.error ?? "", /server error 503/);
+	assert.equal(failed?.finalization.opinion, undefined);
+	assert.equal(failed?.finalization.partialOpinion, "# Lead opinion\n\nIncomplete failure");
+
+	const partialArtifacts = await createReviewRunArtifacts(snapshot, reviewers, "partial lead", agentDir);
+	await finalizeReviewRun(partialArtifacts, results, raw, aborted!.finalization);
+	assert.match(
+		await readFile(join(partialArtifacts.runDir, "lead-opinion.partial.md"), "utf8"),
+		/not authoritative/i,
+	);
+	await assert.rejects(readFile(join(partialArtifacts.runDir, "lead-opinion.md"), "utf8"), { code: "ENOENT" });
+	const partialOutcome = JSON.parse(await readFile(join(partialArtifacts.runDir, "outcome.json"), "utf8"));
+	assert.equal(partialOutcome.status, "cancelled");
+	assert.equal(partialOutcome.leadOpinion, "partial-not-authoritative");
 
 	let renderRequests = 0;
 	const progress = new CodeReviewProgressPanel(
@@ -107,11 +180,11 @@ try {
 				logDir: artifacts.reviewersDir,
 			},
 			{
-				id: "lead-opinion",
-				label: "Lead opinion",
+				id: "current-session-handoff",
+				label: "Current implementation agent",
 				subtitle: "local-provider/model-lead · effort: xhigh",
 				state: "pending",
-				logDir: artifacts.leadDir,
+				logDir: artifacts.runDir,
 			},
 		],
 		artifacts.runDir,
@@ -136,11 +209,18 @@ try {
 		finishedAt: Date.now(),
 		logDir: artifacts.reviewersDir,
 	});
-	progress.handleInput("escape");
+	progress.update({
+		id: "current-session-handoff",
+		label: "Current implementation agent",
+		state: "handed_off",
+		finishedAt: Date.now(),
+		logDir: artifacts.runDir,
+	});
 	const renderedProgress = stripAnsi(progress.render(120).join("\n"));
 	assert.match(renderedProgress, /finished.*Reviewer Alpha/);
-	assert.match(renderedProgress, /cancelled.*Lead opinion/);
+	assert.match(renderedProgress, /handed off.*Current implementation agent/);
 	assert.match(renderedProgress, /local-provider\/model-lead · effort: xhigh/);
+	progress.handleInput("escape");
 	assert.equal(progress.signal.aborted, true);
 	assert.ok(renderRequests > 0);
 	progress.dispose();
@@ -159,6 +239,24 @@ try {
 	console.log("code-review smoke ok");
 } finally {
 	await rm(root, { recursive: true, force: true });
+}
+
+function leadHandoffMessage(runDir: string) {
+	return {
+		role: "custom",
+		customType: "code-review-handoff",
+		content: "handoff",
+		details: { runDir },
+	};
+}
+
+function assistantMessage(text: string, stopReason: string, errorMessage?: string) {
+	return {
+		role: "assistant",
+		content: [{ type: "text", text }],
+		stopReason,
+		errorMessage,
+	};
 }
 
 function createThemeHarness() {

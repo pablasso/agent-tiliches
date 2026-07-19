@@ -16,7 +16,7 @@ export interface ReviewRunArtifacts {
 	runDir: string;
 	promptsDir: string;
 	reviewersDir: string;
-	leadDir: string;
+	handoffPath: string;
 }
 
 export function getCodeReviewStateDir(agentDir = getAgentDir()): string {
@@ -41,12 +41,8 @@ export async function createReviewRunArtifacts(
 	const runDir = await mkdtemp(join(runsDir, `${timestamp}-${repoName}-`));
 	const promptsDir = join(runDir, "prompts");
 	const reviewersDir = join(runDir, "reviewers");
-	const leadDir = join(runDir, "lead-opinion");
-	await Promise.all([
-		mkdir(promptsDir, { mode: 0o700 }),
-		mkdir(reviewersDir, { mode: 0o700 }),
-		mkdir(leadDir, { mode: 0o700 }),
-	]);
+	const handoffPath = join(runDir, "lead-handoff.md");
+	await Promise.all([mkdir(promptsDir, { mode: 0o700 }), mkdir(reviewersDir, { mode: 0o700 })]);
 
 	const metadata = {
 		version: 1,
@@ -63,7 +59,7 @@ export async function createReviewRunArtifacts(
 		writePrivate(join(runDir, "snapshot.diff"), snapshot.patch),
 	]);
 
-	return { runDir, promptsDir, reviewersDir, leadDir };
+	return { runDir, promptsDir, reviewersDir, handoffPath };
 }
 
 export async function createReviewerLogPaths(
@@ -79,18 +75,20 @@ export async function createReviewerLogPaths(
 	return modelLogPaths(directory);
 }
 
-export function getLeadLogPaths(artifacts: ReviewRunArtifacts): ModelLogPaths {
-	return modelLogPaths(artifacts.leadDir);
+export interface ReviewRunFinalization {
+	status: "completed" | "handed_off" | "cancelled" | "failed";
+	opinion?: string;
+	partialOpinion?: string;
+	error?: string;
 }
 
 export async function finalizeReviewRun(
 	artifacts: ReviewRunArtifacts,
 	results: ReviewerResult[],
-	opinion: string | undefined,
 	rawReviewMarkdown: string,
-	status: "completed" | "cancelled" | "failed",
-	leadError?: string,
+	finalization: ReviewRunFinalization,
 ): Promise<void> {
+	const { status, opinion, partialOpinion, error } = finalization;
 	const outcome = {
 		finishedAt: new Date().toISOString(),
 		status,
@@ -104,19 +102,40 @@ export async function finalizeReviewRun(
 			error: result.error,
 			logDir: result.logDir,
 		})),
-		leadOpinion: opinion ? "completed" : leadError ? "failed" : "not-run",
-		leadError,
+		leadOpinion:
+			status === "completed" && opinion
+				? "completed-by-current-session"
+				: status === "handed_off"
+					? "delegated-to-current-session"
+					: partialOpinion
+						? "partial-not-authoritative"
+						: "not-run",
+		partialLeadOutput: partialOpinion ? "lead-opinion.partial.md" : undefined,
+		error,
 	};
 	const summary = [
 		rawReviewMarkdown,
 		opinion ? `\n\n---\n\n${opinion.trim()}\n` : "",
-		leadError ? `\n\n---\n\n# Lead opinion failed\n\n${leadError}\n` : "",
+		!opinion && status === "handed_off"
+			? `\n\n---\n\n# Lead opinion\n\nDelegated to the current implementation session.\n`
+			: "",
+		error ? `\n\n---\n\n# Review workflow ${status === "cancelled" ? "cancelled" : "failed"}\n\n${error}\n` : "",
 	].join("");
 
-	await Promise.all([
+	const writes = [
 		writePrivate(join(artifacts.runDir, "outcome.json"), `${JSON.stringify(outcome, null, 2)}\n`),
 		writePrivate(join(artifacts.runDir, "summary.md"), summary),
-	]);
+	];
+	if (opinion) writes.push(writePrivate(join(artifacts.runDir, "lead-opinion.md"), `${opinion.trim()}\n`));
+	if (partialOpinion) {
+		writes.push(
+			writePrivate(
+				join(artifacts.runDir, "lead-opinion.partial.md"),
+				`# Incomplete lead output — not authoritative\n\n${partialOpinion.trim()}\n`,
+			),
+		);
+	}
+	await Promise.all(writes);
 }
 
 export async function findLatestReviewRun(agentDir = getAgentDir()): Promise<string | null> {

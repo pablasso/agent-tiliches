@@ -71,7 +71,7 @@ export class CodeReviewProgressPanel implements Component {
 
 	render(width: number): string[] {
 		const items = this.order.map((id) => this.items.get(id)).filter((item): item is ReviewProgressItem => Boolean(item));
-		const complete = items.filter((item) => item.state === "finished" || item.state === "failed" || item.state === "cancelled").length;
+		const complete = items.filter((item) => isTerminalState(item.state)).length;
 		const active = items.some((item) => item.state === "in_progress");
 		const title = active ? `Code review · ${complete}/${items.length} complete` : "Code review";
 		const lines = [
@@ -111,6 +111,9 @@ export class CodeReviewProgressPanel implements Component {
 			case "finished":
 				status = `${this.theme.fg("success", "✓ finished")}  ${item.label}${suffix}`;
 				break;
+			case "handed_off":
+				status = `${this.theme.fg("success", "→ handed off")}  ${item.label}${suffix}`;
+				break;
 			case "failed":
 				status = `${this.theme.fg("error", "✗ failed")}  ${item.label}${suffix}`;
 				break;
@@ -123,7 +126,7 @@ export class CodeReviewProgressPanel implements Component {
 }
 
 function isTerminalState(state: ReviewProgressState): boolean {
-	return state === "finished" || state === "failed" || state === "cancelled";
+	return state === "finished" || state === "handed_off" || state === "failed" || state === "cancelled";
 }
 
 function formatElapsed(startedAt: number | undefined, finishedAt: number | undefined): string {

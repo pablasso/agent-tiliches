@@ -53,10 +53,9 @@ Pi honors `PI_CODING_AGENT_DIR`, so the file follows a custom agent directory wh
       "thinking": "max"
     }
   ],
-  "extensions": [],
-  "leadThinking": "max"
+  "extensions": []
 }
 ```
 
-`extensions` lists child-Pi extension specs needed to load machine-local providers, for example `"npm:your-provider-extension"`. Review logs are private machine-local artifacts under `~/.pi/agent/code-review/runs/`. Use `/code-review-logs` to open the newest run or `/code-review-logs path` to print its path.
+`extensions` lists child-Pi extension specs needed to load machine-local providers, for example `"npm:your-provider-extension"`. After reviewers finish, the active implementation agent adjudicates their feedback using its current model, thinking level, conversation context, and normal tools; no separate lead subprocess is started. Review logs are private machine-local artifacts under `~/.pi/agent/code-review/runs/`. Use `/code-review-logs` to open the newest run or `/code-review-logs path` to print its path.
 
