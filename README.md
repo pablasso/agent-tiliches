@@ -21,6 +21,7 @@ After installing, reload Pi resources with `/reload` or restart Pi.
 ## Layout
 
 - `extensions/` - TypeScript Pi extensions and tools
+  - `code-review/` - `/code-review` runs machine-local, read-only reviewers in parallel, shows lifecycle progress, saves complete run logs outside the repository, and asks the active model to adjudicate validity and proportionality
   - `comment/` - `/comment` opens the latest assistant message in `$VISUAL`/`$EDITOR` so you can annotate it and send feedback back into the session
   - `diff-review/` - `/diff-review` native diff review window powered by Glimpse and Monaco
   - `no-sleep.ts` - `/no-sleep` macOS `caffeinate` integration, copied from Armin Ronacher's `mitsuhiko/agent-stuff`
@@ -31,4 +32,31 @@ After installing, reload Pi resources with `/reload` or restart Pi.
 - `prompts/` - Pi prompt templates
   - `artifact.md` - `/artifact` distills a focused outcome into a durable, dated handoff document
 - `themes/` - Pi themes
+
+## Code review configuration
+
+`/code-review` deliberately has no repository defaults. Configure reviewers independently on each computer in Pi's user directory:
+
+```text
+~/.pi/agent/code-review.json
+```
+
+Pi honors `PI_CODING_AGENT_DIR`, so the file follows a custom agent directory when one is configured. An absent file is equivalent to an empty reviewer list.
+
+```json
+{
+  "reviewers": [
+    {
+      "name": "Primary reviewer",
+      "provider": "your-provider",
+      "model": "your-model-id",
+      "thinking": "max"
+    }
+  ],
+  "extensions": [],
+  "leadThinking": "max"
+}
+```
+
+`extensions` lists child-Pi extension specs needed to load machine-local providers, for example `"npm:your-provider-extension"`. Review logs are private machine-local artifacts under `~/.pi/agent/code-review/runs/`. Use `/code-review-logs` to open the newest run or `/code-review-logs path` to print its path.
 
