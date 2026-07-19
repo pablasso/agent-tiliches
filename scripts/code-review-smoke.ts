@@ -68,8 +68,17 @@ try {
 	for (const severity of ["P0 Critical", "P1 High", "P2 Medium", "P3 Low"]) {
 		assert.match(reviewerPrompt, new RegExp(severity));
 	}
-	assert.match(reviewerPrompt, /smallest reasonable fix/i);
-	assert.match(reviewerPrompt, /large refactor/i);
+	assert.match(reviewerPrompt, /smallest reasonable candidate fix/i);
+	assert.match(reviewerPrompt, /advisory evidence/i);
+	assert.match(reviewerPrompt, /not the final action or cost-benefit judgment/i);
+	assert.match(reviewerPrompt, /fix involvement: TINY, SMALL, MEDIUM, or LARGE/i);
+	assert.match(reviewerPrompt, /expected footprint:/i);
+	assert.match(reviewerPrompt, /complexity drivers:/i);
+	assert.match(reviewerPrompt, /ongoing maintenance impact: DECREASES, NEUTRAL, or INCREASES/i);
+	assert.match(reviewerPrompt, /estimate confidence: HIGH, MEDIUM, or LOW/i);
+	assert.match(reviewerPrompt, /Do not assign FIX NOW, FOLLOW-UP, INVESTIGATE, or NO ACTION/);
+	assert.match(reviewerPrompt, /Do not provide time estimates or story points/);
+	assert.match(reviewerPrompt, /smallest credible fix is large/i);
 
 	const results: ReviewerResult[] = reviewers.map((reviewer, index) => ({
 		reviewer,
@@ -97,7 +106,18 @@ try {
 	assert.match(handoff, /INVESTIGATE — collect evidence; do not change code yet/);
 	assert.match(handoff, /NO ACTION — I recommend no work/);
 	assert.match(handoff, /Reviewer claim \(not my conclusion\)/);
-	assert.match(handoff, /My recommendation/);
+	assert.match(handoff, /Reviewer fix proposal\(s\) \(advisory\)/);
+	assert.match(handoff, /Fix I evaluated/);
+	assert.match(handoff, /My expected footprint/);
+	assert.match(handoff, /My fix involvement/);
+	assert.match(handoff, /My complexity drivers/);
+	assert.match(handoff, /My maintenance impact/);
+	assert.match(handoff, /My estimate confidence/);
+	assert.match(handoff, /Do not copy a reviewer estimate without verifying it/);
+	assert.match(handoff, /based on both the defect and the remedy’s implementation\/maintenance cost/);
+	assert.match(handoff, /reviewer claims and fix estimates are advisory evidence only/);
+	assert.match(handoff, /TINY \| SMALL \| MEDIUM \| LARGE \| N\/A/);
+	assert.match(handoff, /Do not provide time estimates or story points/);
 	assert.match(handoff, /FIX NOW and FOLLOW-UP are the only labels that recommend a code change/);
 	assert.match(handoff, /Every finding ID must appear exactly once/);
 	assert.doesNotMatch(handoff, /Consider later:/);
