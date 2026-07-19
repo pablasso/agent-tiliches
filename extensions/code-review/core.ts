@@ -232,31 +232,57 @@ ${reportPaths || "- None"}
 
 For every unique proposed finding:
 1. Verify it against the immutable snapshot and relevant repository/runtime evidence.
-2. Decide: VALID, PARTIALLY VALID, NOT VALID, or NEEDS MORE EVIDENCE.
+2. Give it a stable ID (F1, F2, ...) and decide: VALID, PARTIALLY VALID, NOT VALID, or NEEDS MORE EVIDENCE.
 3. Reassess severity from concrete likelihood and impact.
-4. Merge duplicates and reject disproportionate remedies.
-5. Do not invent unrelated work.
+4. Assign exactly one lead action:
+   - FIX NOW: you recommend implementing the smallest fix in this change before proceeding.
+   - FOLLOW-UP: you recommend implementation work, but separately; it does not block this change.
+   - INVESTIGATE: you recommend gathering specific evidence only; do not recommend a code change yet.
+   - NO ACTION: you recommend no work for this finding.
+5. Merge duplicates, reject disproportionate remedies, and do not invent unrelated work.
 
-Output Markdown in this shape:
+Keep ownership unmistakable:
+- In the output, “I” means the current implementation agent acting as lead.
+- “Reviewer claim” must neutrally summarize what a reviewer alleged; it is not your conclusion or recommendation.
+- “My verification” must contain evidence and reasoning, not implementation advice.
+- “My recommendation” must begin with the assigned action label and say exactly what you recommend.
+- FIX NOW and FOLLOW-UP are the only labels that recommend a code change. INVESTIGATE recommends evidence collection only. NO ACTION recommends nothing.
+- Every finding ID must appear exactly once in the top action list and once in the detailed decisions, with the same action label.
+- Write “None.” under any empty action category. Do not use ambiguous labels such as “consider later” or “proportionate action.”
+
+Output Markdown in exactly this shape:
 # Lead opinion
 
+## What I recommend
+_In this report, “I” means the current implementation agent. This is my action list; reviewer claims are evidence only._
+
+### FIX NOW — before proceeding
+1. **F1 — Short action title:** Exact smallest code/test change I recommend.
+
+### FOLLOW-UP — recommended separately, not required now
+- **F2 — Short action title:** Exact separately tracked work I recommend.
+
+### INVESTIGATE — collect evidence; do not change code yet
+- **F3 — Short investigation title:** Exact evidence I recommend collecting.
+
+### NO ACTION — I recommend no work
+- **F4 — Short finding title:** No change recommended; concise reason.
+
+## Finding-by-finding decisions
+For every unique finding:
+### F1 — [FIX NOW] Title
+- **Reviewer claim (not my conclusion):** Neutral summary of the alleged issue.
+- **Raised by:** ...
+- **My verdict:** VALID | PARTIALLY VALID | NOT VALID | NEEDS MORE EVIDENCE
+- **My severity:** P0 | P1 | P2 | P3 | No issue
+- **My verification:** Verified facts, failure path, impact, and any uncertainty.
+- **My recommendation:** **FIX NOW** — Exact smallest action I recommend.
+
+## Proceed?
+**PROCEED | FIX FIRST | INVESTIGATE FIRST** — One sentence tied to the FIX NOW list. FOLLOW-UP items do not block proceeding.
+
+## Review provenance
 _Review execution: ${executionLine}_
-
-## Decision summary
-- Fix now: ...
-- Consider later: ...
-- Do not act on: ...
-
-## Finding adjudication
-For each unique finding:
-### [final severity or No issue] Title
-- Verdict: VALID | PARTIALLY VALID | NOT VALID | NEEDS MORE EVIDENCE
-- Raised by: ...
-- Assessment: ...
-- Proportionate action: ...
-
-## Bottom line
-State whether the change is safe to proceed, should be fixed first, or needs more evidence, and why.
 
 ## Independent reviewer reports
 `;

@@ -91,6 +91,17 @@ try {
 	});
 	assert.match(handoff, /current implementation agent/i);
 	assert.match(handoff, /VALID, PARTIALLY VALID, NOT VALID, or NEEDS MORE EVIDENCE/);
+	assert.match(handoff, /## What I recommend/);
+	assert.match(handoff, /FIX NOW — before proceeding/);
+	assert.match(handoff, /FOLLOW-UP — recommended separately, not required now/);
+	assert.match(handoff, /INVESTIGATE — collect evidence; do not change code yet/);
+	assert.match(handoff, /NO ACTION — I recommend no work/);
+	assert.match(handoff, /Reviewer claim \(not my conclusion\)/);
+	assert.match(handoff, /My recommendation/);
+	assert.match(handoff, /FIX NOW and FOLLOW-UP are the only labels that recommend a code change/);
+	assert.match(handoff, /Every finding ID must appear exactly once/);
+	assert.doesNotMatch(handoff, /Consider later:/);
+	assert.doesNotMatch(handoff, /Proportionate action:/);
 	assert.match(handoff, /reject disproportionate remedies/i);
 	assert.match(handoff, /focus on regressions/);
 	assert.match(handoff, /snapshot\.diff/);
