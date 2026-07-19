@@ -10,13 +10,14 @@ import {
 import { getCodeReviewConfigPath, loadCodeReviewConfig, type CodeReviewConfig } from "./config.ts";
 import {
 	buildLeadHandoff,
+	buildReviewerDigest,
 	captureReviewSnapshot,
 	formatRawReviews,
-	formatReviewerDigest,
 	hasReviewableChanges,
 	type ReviewerResult,
 	type ReviewSnapshot,
 } from "./core.ts";
+import { createReviewerDigestPanel, type CodeReviewHandoffDetails } from "./digest.ts";
 import { openPath } from "./open-logs.ts";
 import { CodeReviewProgressPanel, type ReviewProgressItem } from "./progress.ts";
 import { abortActiveReviewProcesses, runReviewersInParallel, type ReviewProgressState } from "./runner.ts";
@@ -42,6 +43,10 @@ export default function codeReviewExtension(pi: ExtensionAPI) {
 	const pendingLeadRuns: PendingLeadRun[] = [];
 	const leadLifecycle = new LeadLifecycleTracker<PendingLeadRun>((runDir) =>
 		pendingLeadRuns.find((candidate) => candidate.artifacts.runDir === runDir),
+	);
+
+	pi.registerMessageRenderer<CodeReviewHandoffDetails>(HANDOFF_MESSAGE_TYPE, (message, _options, theme) =>
+		createReviewerDigestPanel(message.details, theme),
 	);
 
 	pi.registerCommand("code-review", {
@@ -135,8 +140,11 @@ export default function codeReviewExtension(pi: ExtensionAPI) {
 					{
 						customType: HANDOFF_MESSAGE_TYPE,
 						content: handoff,
-						display: false,
-						details: { runDir: workflow.runDir },
+						display: true,
+						details: {
+							runDir: workflow.runDir,
+							digest: buildReviewerDigest(workflow.results),
+						},
 					},
 					{ triggerTurn: true },
 				);
@@ -150,8 +158,6 @@ export default function codeReviewExtension(pi: ExtensionAPI) {
 				ctx.ui.notify(`Could not trigger current-session adjudication: ${errorMessage(error)}`, "error");
 				return;
 			}
-
-			ctx.ui.notify(`${formatReviewerDigest(workflow.results)}\nLead adjudication started.`, "info");
 		},
 	});
 

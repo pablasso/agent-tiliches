@@ -3,7 +3,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { CodeReviewProgressPanel } from "../extensions/code-review/progress.ts";
+import { createReviewerDigestPanel } from "../extensions/code-review/digest.ts";
 import codeReviewExtension, { LeadLifecycleTracker } from "../extensions/code-review/index.ts";
 import {
 	createReviewRunArtifacts,
@@ -18,10 +20,10 @@ import {
 } from "../extensions/code-review/config.ts";
 import {
 	buildLeadHandoff,
+	buildReviewerDigest,
 	buildReviewerSystemPrompt,
 	captureReviewSnapshot,
 	formatRawReviews,
-	formatReviewerDigest,
 	hasReviewableChanges,
 	type ReviewerResult,
 } from "../extensions/code-review/core.ts";
@@ -95,7 +97,7 @@ try {
 	assert.match(raw, /Reviewer Beta/);
 	assert.match(raw, /unverified until the adjudication/i);
 
-	const digest = formatReviewerDigest([
+	const digest = buildReviewerDigest([
 		{
 			...results[0],
 			output: [
@@ -104,26 +106,55 @@ try {
 				"```",
 				"## Findings",
 				"### [P2] Preserve known limits",
-				"### [P3] Sanitize\\u001b[31m model title with a deliberately overlong explanation that must be truncated",
+				"### [P3] Sanitize\\u001b[31m model title with a deliberately long explanation that must wrap instead of disappearing from a narrow panel",
 				"### [P2] Keep regional fallback",
 			].join("\n").replace("\\u001b", "\u001b"),
 			durationMs: 110_000,
 		},
 		{ ...results[1], output: "## Findings\nNo actionable defects found.", durationMs: 134_000 },
 	]);
-	assert.match(digest, /^Independent reviewer digest \(claims are unverified\):/);
-	assert.match(digest, /Reviewer Alpha \(local-provider\/model-alpha, effort max, 1\.8m\): 3 claims \(2 P2, 1 P3\)/);
-	assert.match(digest, /Preserve known limits; Sanitize model title/);
-	assert.match(digest, /\+1 more/);
-	assert.doesNotMatch(digest, /Ignore fenced fake finding/);
-	assert.doesNotMatch(digest, /\\u001b|\u001b/);
-	assert.match(digest, /Reviewer Beta .*reported no actionable defects/);
-	const unavailableDigest = formatReviewerDigest([{ ...results[0], output: "Free-form review without headings." }]);
-	assert.match(unavailableDigest, /completed — summary unavailable/);
-	const failedDigest = formatReviewerDigest([
+	assert.equal(digest.completed, 2);
+	assert.equal(digest.total, 2);
+	assert.equal(digest.reviewers[0].status, "claims");
+	assert.equal(digest.reviewers[0].claimCount, 3);
+	assert.deepEqual(digest.reviewers[0].severityCounts, [
+		{ severity: "P2", count: 2 },
+		{ severity: "P3", count: 1 },
+	]);
+	assert.equal(digest.reviewers[0].claims[0].title, "Preserve known limits");
+	assert.match(digest.reviewers[0].claims[1].title, /^Sanitize model title/);
+	assert.doesNotMatch(digest.reviewers[0].claims[1].title, /\\u001b|\u001b/);
+	assert.equal(digest.reviewers[0].remainingClaims, 1);
+	assert.equal(digest.reviewers[1].status, "no-defects");
+	assert.equal(digest.reviewers.some((reviewer) => reviewer.claims.some((claim) => /fenced fake/.test(claim.title))), false);
+
+	const narrowPanel = createReviewerDigestPanel(
+		{ runDir: root, digest },
+		createThemeHarness() as never,
+	);
+	const narrowLines = narrowPanel.render(52);
+	assert.equal(narrowLines.every((line) => visibleWidth(line) <= 52), true);
+	const renderedDigest = stripAnsi(narrowLines.join("\n"));
+	const normalizedDigest = renderedDigest.replace(/\s+/g, " ");
+	assert.match(normalizedDigest, /Independent reviews complete/);
+	assert.match(normalizedDigest, /Claims below are unverified/);
+	assert.match(normalizedDigest, /Reviewer Alpha/);
+	assert.match(normalizedDigest, /3 unverified claims · 2 P2, 1 P3/);
+	assert.match(normalizedDigest, /Preserve known limits/);
+	assert.match(normalizedDigest, /Sanitize model title/);
+	assert.match(normalizedDigest, /narrow panel/);
+	assert.match(normalizedDigest, /\+1 more in the full reviewer report/);
+	assert.match(normalizedDigest, /Reviewer Beta/);
+	assert.match(normalizedDigest, /Reported no actionable defects/);
+	assert.match(normalizedDigest, /Verifying reviewer claims and preparing the final recommendation…/);
+	assert.match(normalizedDigest, /Full reports: \/code-review-logs/);
+
+	const unavailableDigest = buildReviewerDigest([{ ...results[0], output: "Free-form review without headings." }]);
+	assert.equal(unavailableDigest.reviewers[0].status, "summary-unavailable");
+	const cancelledDigest = buildReviewerDigest([
 		{ ...results[0], ok: false, output: "", error: "Reviewer Alpha cancelled.", stopReason: "aborted" },
 	]);
-	assert.match(failedDigest, /: cancelled$/);
+	assert.equal(cancelledDigest.reviewers[0].status, "cancelled");
 
 	const artifacts = await createReviewRunArtifacts(snapshot, reviewers, "focus on regressions", agentDir);
 	const handoff = buildLeadHandoff(snapshot, results, "focus on regressions", {
@@ -296,14 +327,18 @@ try {
 	progress.dispose();
 
 	const commands: string[] = [];
+	const messageRenderers: string[] = [];
 	codeReviewExtension({
 		registerCommand(name: string) {
 			commands.push(name);
 		},
-		registerMessageRenderer() {},
+		registerMessageRenderer(customType: string) {
+			messageRenderers.push(customType);
+		},
 		on() {},
 	} as unknown as ExtensionAPI);
 	assert.deepEqual(commands, ["code-review", "code-review-logs"]);
+	assert.deepEqual(messageRenderers, ["code-review-handoff"]);
 	assert.equal("registerTool" in ({} as ExtensionAPI), false);
 
 	console.log("code-review smoke ok");
@@ -332,6 +367,7 @@ function assistantMessage(text: string, stopReason: string, errorMessage?: strin
 function createThemeHarness() {
 	return {
 		fg: (_color: string, text: string) => text,
+		bg: (_color: string, text: string) => text,
 		bold: (text: string) => text,
 	};
 }
