@@ -21,6 +21,7 @@ After installing, reload Pi resources with `/reload` or restart Pi.
 ## Layout
 
 - `extensions/` - TypeScript Pi extensions and tools
+  - `clone-tab/` - `/clone-tab` clones the active conversation branch into a full, independent Pi session in a new tab of the originating Ghostty window while the original session keeps running
   - `code-review/` - `/code-review` runs machine-local, read-only reviewers in parallel, shows lifecycle progress, saves complete run logs outside the repository, and asks the active model to adjudicate validity and proportionality
   - `codex-usage/` - shows server-reported Codex login limits in the footer and exposes `/codex-usage` for 5-hour/weekly windows, resets, credits, and named limits
   - `comment/` - `/comment` opens the latest assistant message in `$VISUAL`/`$EDITOR` so you can annotate it and send feedback back into the session
