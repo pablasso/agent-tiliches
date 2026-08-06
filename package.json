@@ -24,7 +24,7 @@
     ]
   },
   "scripts": {
-    "check": "node --no-warnings --experimental-strip-types scripts/web-fetch-smoke.ts && node --no-warnings --experimental-strip-types scripts/code-review-smoke.ts"
+    "check": "node --no-warnings --experimental-strip-types scripts/web-fetch-smoke.ts && node --no-warnings --experimental-strip-types scripts/code-review-smoke.ts && node --no-warnings --experimental-strip-types scripts/codex-usage-smoke.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
