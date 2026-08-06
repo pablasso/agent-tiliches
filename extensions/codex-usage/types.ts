@@ -22,6 +22,10 @@ export interface CodexCredits {
 	balance?: string;
 }
 
+export interface CodexRateLimitResetCredits {
+	availableCount: number;
+}
+
 export interface CodexUsageSnapshot {
 	source: CodexUsageSource;
 	fetchedAt: number;
@@ -29,6 +33,7 @@ export interface CodexUsageSnapshot {
 	defaultLimit?: CodexRateLimit;
 	additionalLimits: CodexRateLimit[];
 	credits?: CodexCredits;
+	rateLimitResetCredits?: CodexRateLimitResetCredits;
 }
 
 export interface ClassifiedWindows {

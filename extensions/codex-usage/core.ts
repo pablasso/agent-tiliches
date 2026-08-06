@@ -3,6 +3,7 @@ import type {
 	CodexCredits,
 	CodexHeaderRecord,
 	CodexRateLimit,
+	CodexRateLimitResetCredits,
 	CodexUsageSnapshot,
 	CodexUsageWindow,
 } from "./types.ts";
@@ -125,6 +126,13 @@ function parseApiCredits(value: unknown): CodexCredits | undefined {
 	};
 }
 
+function parseRateLimitResetCredits(value: unknown): CodexRateLimitResetCredits | undefined {
+	if (!isRecord(value)) return undefined;
+	const availableCount = firstNumber(value, ["available_count", "availableCount"]);
+	if (availableCount === undefined) return undefined;
+	return { availableCount: Math.max(0, Math.floor(availableCount)) };
+}
+
 function normalizeLimitId(value: string): string {
 	return value.trim().toLowerCase().replace(/-/g, "_").replace(/[^a-z0-9_]+/g, "_");
 }
@@ -151,7 +159,10 @@ export function parseCodexUsageResponse(value: unknown, nowMs = Date.now()): Cod
 
 	const plan = stringValue(value.plan_type ?? value.planType);
 	const credits = parseApiCredits(value.credits);
-	if (!defaultLimit && additionalLimits.length === 0 && !credits) {
+	const rateLimitResetCredits = parseRateLimitResetCredits(
+		value.rate_limit_reset_credits ?? value.rateLimitResetCredits,
+	);
+	if (!defaultLimit && additionalLimits.length === 0 && !credits && !rateLimitResetCredits) {
 		throw new Error("OpenAI's usage response did not include any Codex limits.");
 	}
 
@@ -162,6 +173,7 @@ export function parseCodexUsageResponse(value: unknown, nowMs = Date.now()): Cod
 		...(defaultLimit ? { defaultLimit } : {}),
 		additionalLimits,
 		...(credits ? { credits } : {}),
+		...(rateLimitResetCredits ? { rateLimitResetCredits } : {}),
 	};
 }
 
@@ -377,14 +389,21 @@ export function formatCodexUsageStatus(snapshot: CodexUsageSnapshot): string {
 		...(weekly ? [{ label: "week", window: weekly, showLowWeeklyReset: true }] : []),
 		...other.map((item) => ({ ...item, showLowWeeklyReset: false })),
 	];
-	if (windows.length === 0) return "Codex limits unavailable";
-	if (windows.length === 1) {
+	let status: string;
+	if (windows.length === 0) {
+		status = "Codex limits unavailable";
+	} else if (windows.length === 1) {
 		const window = windows[0]!;
-		return `Codex: ${formatStatusWindow(window.window, window.showLowWeeklyReset)}`;
+		status = `Codex: ${formatStatusWindow(window.window, window.showLowWeeklyReset)}`;
+	} else {
+		status = `Codex: ${windows
+			.map(({ label, window, showLowWeeklyReset }) => `${label} ${formatStatusWindow(window, showLowWeeklyReset)}`)
+			.join(" · ")}`;
 	}
-	return `Codex: ${windows
-		.map(({ label, window, showLowWeeklyReset }) => `${label} ${formatStatusWindow(window, showLowWeeklyReset)}`)
-		.join(" · ")}`;
+
+	const resetCount = snapshot.rateLimitResetCredits?.availableCount ?? 0;
+	if (resetCount <= 0) return status;
+	return `${status} · ${resetCount} reset${resetCount === 1 ? "" : "s"} available`;
 }
 
 export function lowestCodexRemaining(snapshot: CodexUsageSnapshot): number | undefined {

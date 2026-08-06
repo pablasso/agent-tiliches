@@ -51,6 +51,9 @@ const apiFixture = {
 		overage_limit_reached: false,
 		balance: "42.5",
 	},
+	rate_limit_reset_credits: {
+		available_count: 1,
+	},
 };
 
 const parsed = parseCodexUsageResponse(apiFixture, nowMs);
@@ -63,9 +66,24 @@ assert.equal(parsed.defaultLimit?.secondary?.usedPercent, 40.5);
 assert.equal(parsed.additionalLimits[0]?.id, "codex_bengalfox");
 assert.equal(parsed.additionalLimits[0]?.name, "GPT Codex Spark");
 assert.equal(parsed.credits?.balance, "42.5");
+assert.equal(parsed.rateLimitResetCredits?.availableCount, 1);
 assert.equal(classifyCodexWindows(parsed.defaultLimit).fiveHour?.usedPercent, 23);
 assert.equal(classifyCodexWindows(parsed.defaultLimit).weekly?.usedPercent, 40.5);
-assert.equal(formatCodexUsageStatus(parsed), "Codex: 5h 77% · week 59.5%");
+assert.equal(formatCodexUsageStatus(parsed), "Codex: 5h 77% · week 59.5% · 1 reset available");
+assert.equal(
+	formatCodexUsageStatus({
+		...parsed,
+		rateLimitResetCredits: { availableCount: 2 },
+	}),
+	"Codex: 5h 77% · week 59.5% · 2 resets available",
+);
+assert.equal(
+	formatCodexUsageStatus({
+		...parsed,
+		rateLimitResetCredits: { availableCount: 0 },
+	}),
+	"Codex: 5h 77% · week 59.5%",
+);
 
 const lowWeeklyResetAt = parsed.defaultLimit!.secondary!.resetsAt!;
 const lowWeeklyReset = new Date(lowWeeklyResetAt * 1_000).toLocaleString(undefined, {
@@ -81,7 +99,10 @@ const lowWeekly = {
 		secondary: { ...parsed.defaultLimit!.secondary!, usedPercent: 66 },
 	},
 };
-assert.equal(formatCodexUsageStatus(lowWeekly), `Codex: 5h 77% · week 34% until ${lowWeeklyReset}`);
+assert.equal(
+	formatCodexUsageStatus(lowWeekly),
+	`Codex: 5h 77% · week 34% until ${lowWeeklyReset} · 1 reset available`,
+);
 assert.equal(
 	formatCodexUsageStatus({
 		...lowWeekly,
@@ -90,7 +111,7 @@ assert.equal(
 			secondary: { ...lowWeekly.defaultLimit.secondary, usedPercent: 65 },
 		},
 	}),
-	"Codex: 5h 77% · week 35%",
+	"Codex: 5h 77% · week 35% · 1 reset available",
 );
 
 const details = formatCodexUsageDetails(parsed, nowMs);
@@ -157,6 +178,7 @@ assert.equal(merged.defaultLimit?.primary?.usedPercent, 25.5);
 assert.equal(merged.defaultLimit?.secondary?.usedPercent, 60);
 assert.equal(merged.additionalLimits[0]?.name, "GPT Codex Spark");
 assert.equal(merged.credits?.balance, "9");
+assert.equal(merged.rateLimitResetCredits?.availableCount, 1);
 
 // Endpoint responses are authoritative and can remove a no-longer-reported
 // short window instead of preserving stale header data.
@@ -164,6 +186,7 @@ const authoritative = mergeCodexUsageSnapshots(fromHeaders, weeklyOnly);
 assert.equal(authoritative.source, "api");
 assert.equal(authoritative.defaultLimit?.secondary, undefined);
 assert.equal(classifyCodexWindows(authoritative.defaultLimit).fiveHour, undefined);
+assert.equal(authoritative.rateLimitResetCredits, undefined);
 
 assert.equal(parseCodexRateLimitHeaders({ "content-type": "text/event-stream" }, nowMs), undefined);
 assert.throws(() => parseCodexUsageResponse({ plan_type: "plus" }, nowMs), /did not include any Codex limits/);
