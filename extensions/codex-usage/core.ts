@@ -362,17 +362,24 @@ function formatPercent(value: number): string {
 
 export function formatCodexUsageStatus(snapshot: CodexUsageSnapshot): string {
 	const { fiveHour, weekly, other } = classifyCodexWindows(snapshot.defaultLimit);
-	const windows: string[] = [];
-	if (fiveHour) windows.push(`5h: ${formatPercent(leftPercent(fiveHour))}% left`);
-	if (weekly) windows.push(`week: ${formatPercent(leftPercent(weekly))}% left`);
-	for (const item of other) windows.push(`${item.label}: ${formatPercent(leftPercent(item.window))}% left`);
-	return windows.length > 0 ? `Codex ${windows.join(" · ")}` : "Codex limits unavailable";
+	const windows = [
+		...(fiveHour ? [{ label: "5h", window: fiveHour }] : []),
+		...(weekly ? [{ label: "week", window: weekly }] : []),
+		...other,
+	];
+	if (windows.length === 0) return "Codex limits unavailable";
+	if (windows.length === 1) return `Codex: ${formatPercent(leftPercent(windows[0]!.window))}%`;
+	return `Codex: ${windows
+		.map(({ label, window }) => `${label} ${formatPercent(leftPercent(window))}%`)
+		.join(" · ")}`;
 }
 
 export function lowestCodexRemaining(snapshot: CodexUsageSnapshot): number | undefined {
-	const { fiveHour, weekly } = classifyCodexWindows(snapshot.defaultLimit);
-	const values = [fiveHour, weekly].filter((window): window is CodexUsageWindow => Boolean(window)).map(leftPercent);
-	return values.length > 0 ? Math.min(...values) : undefined;
+	const { fiveHour, weekly, other } = classifyCodexWindows(snapshot.defaultLimit);
+	const windows = [fiveHour, weekly, ...other.map((item) => item.window)].filter(
+		(window): window is CodexUsageWindow => Boolean(window),
+	);
+	return windows.length > 0 ? Math.min(...windows.map(leftPercent)) : undefined;
 }
 
 function formatWindowLine(label: string, window: CodexUsageWindow, nowMs: number): string {

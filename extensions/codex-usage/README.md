@@ -4,7 +4,7 @@ Tracks the account-level limits attached to Pi's `openai-codex` provider (the pr
 
 ## What it shows
 
-- A compact footer status while an `openai-codex` model is selected
+- A compact footer status while an `openai-codex` model is selected: `Codex: 86%` for one limit, or every labeled limit when OpenAI reports multiple windows
 - The server-reported 5-hour window, when present
 - The server-reported weekly window, when present
 - Reset countdowns, plan, credits, and named/model-specific limits through `/codex-usage`

@@ -65,7 +65,7 @@ assert.equal(parsed.additionalLimits[0]?.name, "GPT Codex Spark");
 assert.equal(parsed.credits?.balance, "42.5");
 assert.equal(classifyCodexWindows(parsed.defaultLimit).fiveHour?.usedPercent, 23);
 assert.equal(classifyCodexWindows(parsed.defaultLimit).weekly?.usedPercent, 40.5);
-assert.equal(formatCodexUsageStatus(parsed), "Codex 5h: 77% left · week: 59.5% left");
+assert.equal(formatCodexUsageStatus(parsed), "Codex: 5h 77% · week 59.5%");
 
 const details = formatCodexUsageDetails(parsed, nowMs);
 assert.match(details, /Codex usage \(Plus\)/);
@@ -94,7 +94,7 @@ const weeklyOnly = parseCodexUsageResponse(
 const weeklyOnlyWindows = classifyCodexWindows(weeklyOnly.defaultLimit);
 assert.equal(weeklyOnlyWindows.fiveHour, undefined);
 assert.equal(weeklyOnlyWindows.weekly?.usedPercent, 14);
-assert.equal(formatCodexUsageStatus(weeklyOnly), "Codex week: 86% left");
+assert.equal(formatCodexUsageStatus(weeklyOnly), "Codex: 86%");
 assert.doesNotMatch(formatCodexUsageDetails(weeklyOnly, nowMs), /5h:/);
 assert.match(formatCodexUsageDetails(weeklyOnly, nowMs), /Weekly: 86% left/);
 
