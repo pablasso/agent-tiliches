@@ -19,6 +19,25 @@ export interface ReviewCommit {
   subject: string;
 }
 
+export interface ReviewRepository {
+  id: string;
+  label: string;
+  root: string;
+  workspaceRelativePath: string;
+}
+
+export type ReviewTarget =
+  | {
+      kind: "repository";
+      root: string;
+      repositories: [ReviewRepository];
+    }
+  | {
+      kind: "brazil-workspace";
+      root: string;
+      repositories: ReviewRepository[];
+    };
+
 export interface ReviewFile {
   id: string;
   path: string;
@@ -91,6 +110,7 @@ export interface ReviewFileErrorMessage {
 export type ReviewHostMessage = ReviewFileDataMessage | ReviewFileErrorMessage;
 
 export interface ReviewWindowData {
+  target: ReviewTarget;
   repoRoot: string;
   files: ReviewFile[];
   commits: ReviewCommit[];

@@ -3,7 +3,16 @@
 import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { ChangeStatus, ReviewFile, ReviewFileComparison, ReviewFileContents, ReviewScope } from "./types.ts";
+import type {
+  ChangeStatus,
+  ReviewFile,
+  ReviewFileComparison,
+  ReviewFileContents,
+  ReviewScope,
+  ReviewTarget,
+  ReviewWindowData,
+} from "./types.ts";
+import { requireSingleReviewRepository } from "./target.ts";
 
 interface ChangedPath {
   status: ChangeStatus;
@@ -37,14 +46,6 @@ async function runGitAllowFailure(pi: ExtensionAPI, repoRoot: string, args: stri
     return "";
   }
   return result.stdout;
-}
-
-export async function getRepoRoot(pi: ExtensionAPI, cwd: string): Promise<string> {
-  const result = await pi.exec("git", ["rev-parse", "--show-toplevel"], { cwd });
-  if (result.code !== 0) {
-    throw new Error("Not inside a git repository.");
-  }
-  return result.stdout.trim();
 }
 
 async function hasHead(pi: ExtensionAPI, repoRoot: string): Promise<boolean> {
@@ -272,8 +273,9 @@ function upsertSeed(seeds: Map<string, ReviewFileSeed>, key: string, create: () 
   return seed;
 }
 
-export async function getReviewWindowData(pi: ExtensionAPI, cwd: string): Promise<{ repoRoot: string; files: ReviewFile[]; commits: { sha: string; shortSha: string; subject: string }[] }> {
-  const repoRoot = await getRepoRoot(pi, cwd);
+export async function getReviewWindowData(pi: ExtensionAPI, target: ReviewTarget): Promise<ReviewWindowData> {
+  const repository = requireSingleReviewRepository(target);
+  const repoRoot = repository.root;
   const repositoryHasHead = await hasHead(pi, repoRoot);
 
   const trackedDiffOutput = repositoryHasHead
@@ -373,7 +375,7 @@ export async function getReviewWindowData(pi: ExtensionAPI, cwd: string): Promis
     .map(createReviewFile)
     .sort(compareReviewFiles);
 
-  return { repoRoot, files, commits };
+  return { target, repoRoot, files, commits };
 }
 
 export async function loadReviewFileContents(pi: ExtensionAPI, repoRoot: string, file: ReviewFile, scope: ReviewScope, commitSha?: string): Promise<ReviewFileContents> {

@@ -4,6 +4,7 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-c
 import { Key, matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
 import { open, type GlimpseWindow } from "glimpseui";
 import { getReviewWindowData, loadReviewFileContents } from "./git.ts";
+import { discoverReviewTarget } from "./target.ts";
 import { composeReviewPrompt } from "./prompt.ts";
 import type {
   ReviewCancelPayload,
@@ -12,6 +13,7 @@ import type {
   ReviewHostMessage,
   ReviewRequestFilePayload,
   ReviewSubmitPayload,
+  ReviewWindowData,
   ReviewWindowMessage,
 } from "./types.ts";
 import { buildReviewHtml } from "./ui.ts";
@@ -119,13 +121,23 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    const { repoRoot, files, commits } = await getReviewWindowData(pi, ctx.cwd);
+    let reviewData: ReviewWindowData;
+    try {
+      const target = await discoverReviewTarget(pi, ctx.cwd);
+      reviewData = await getReviewWindowData(pi, target);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      ctx.ui.notify(`Review failed: ${message}`, "error");
+      return;
+    }
+
+    const { repoRoot, files, commits } = reviewData;
     if (files.length === 0) {
       ctx.ui.notify("No reviewable files found.", "info");
       return;
     }
 
-    const html = buildReviewHtml({ repoRoot, files, commits });
+    const html = buildReviewHtml(reviewData);
     const window = open(html, {
       width: 1680,
       height: 1020,
@@ -275,7 +287,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   pi.registerCommand("diff-review", {
-    description: "Open a native review window with git diff, last commit, and all files scopes",
+    description: "Open a native review window for a Git repository or Brazil workspace",
     handler: async (_args, ctx) => {
       await reviewRepository(ctx);
     },
