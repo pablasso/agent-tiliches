@@ -1,63 +1,37 @@
 # Agent Tiliches
 
-The tooling and customizations that I use with [Pi](https://pi.dev). A lot of this is inspired by badlogicgames' configs.
+My personal collection of extensions, skills, and prompt templates for [Pi](https://pi.dev). It is the kind of setup I enjoy customizing as deeply as Vim or Emacs.
 
-Pi is an agent that encourages customization to fit whatever flows you like. It reminds me of customizing the hell out of Vim or Emacs, and I love that.
+Much of it is inspired by [Mario Zechner's Pi projects](https://github.com/badlogic).
 
-## Pi package
+## Installation
 
-This repo is structured as a local Pi package so its resources can be version-tracked here and loaded by Pi in place.
-
-From the repo root:
+From the repository root:
 
 ```bash
 pi install .
 ```
 
-Or from anywhere, pass the absolute path to your local checkout.
+Then run `/reload` in an existing Pi session, or restart Pi.
 
-After installing, reload Pi resources with `/reload` or restart Pi.
+## What's included
 
-## Layout
+### Extensions
 
-- `extensions/` - TypeScript Pi extensions and tools
-  - `clone-tab/` - `/clone-tab` clones the active conversation branch into a full, independent Pi session in a new tab of the originating Ghostty window while the original session keeps running
-  - `code-review/` - `/code-review` runs machine-local, read-only reviewers in parallel, shows lifecycle progress, saves complete run logs outside the repository, and asks the active model to adjudicate validity and proportionality
-  - `codex-usage/` - shows server-reported Codex login limits in the footer and exposes `/codex-usage` for 5-hour/weekly windows, resets, credits, and named limits
-  - `comment/` - `/comment` opens the latest assistant message in `$VISUAL`/`$EDITOR` so you can annotate it and send feedback back into the session
-  - `diff-review/` - `/diff-review` native diff review window powered by Glimpse and Monaco
-  - `no-sleep.ts` - `/no-sleep` macOS `caffeinate` integration, copied from Armin Ronacher's `mitsuhiko/agent-stuff`
-  - `web-fetch/` - static URL fetch/readable extraction with warnings when browser navigation may be needed
-- `skills/` - Agent Skills-compatible skills
-  - `browser-tools/` - navigate and debug web pages through Playwright CLI, with checked setup and optional user-approved current-browser attachment via the Playwright Extension
-  - `youtube-transcript/` - fetch timestamped YouTube transcripts via `youtube-transcript-plus`
-- `prompts/` - Pi prompt templates
-  - `artifact.md` - `/artifact` distills a focused outcome into a durable, dated handoff document
-- `themes/` - Pi themes
+- **[Clone tab](extensions/clone-tab/README.md)** — `/clone-tab` opens the active conversation branch as an independent Pi session in a new Ghostty tab.
+- **[Code review](extensions/code-review/README.md)** — `/code-review` runs configured read-only reviewers in parallel, then has the current agent verify and prioritize their findings.
+- **[Codex usage](extensions/codex-usage/README.md)** — shows Codex login limits in the footer and through `/codex-usage`.
+- **[Comment](extensions/comment/)** — `/comment` opens the latest assistant response in `$VISUAL` or `$EDITOR` for annotation.
+- **[Diff review](extensions/diff-review/)** — `/diff-review` opens a native window for reviewing Git changes and returns the feedback to Pi.
+- **[No sleep](extensions/no-sleep.ts)** — `/no-sleep` controls macOS sleep prevention while Pi is running, copied from [Armin Ronacher's agent-stuff](https://github.com/mitsuhiko/agent-stuff).
+- **[Web fetch](extensions/web-fetch/README.md)** — adds the static `web_fetch` tool for extracting readable content from a URL.
 
-## Code review configuration
+### Skills
 
-`/code-review` deliberately has no repository defaults. Configure reviewers independently on each computer in Pi's user directory:
+- **[Brave Search](skills/brave-search/SKILL.md)** — searches the web and extracts readable page content through the Brave Search API.
+- **[Browser tools](skills/browser-tools/SKILL.md)** — navigates and debugs web pages with Playwright CLI.
+- **[YouTube transcript](skills/youtube-transcript/SKILL.md)** — fetches timestamped transcripts from YouTube videos.
 
-```text
-~/.pi/agent/code-review.json
-```
+### Prompt templates
 
-Pi honors `PI_CODING_AGENT_DIR`, so the file follows a custom agent directory when one is configured. An absent file is equivalent to an empty reviewer list.
-
-```json
-{
-  "reviewers": [
-    {
-      "name": "Primary reviewer",
-      "provider": "your-provider",
-      "model": "your-model-id",
-      "thinking": "max"
-    }
-  ],
-  "extensions": []
-}
-```
-
-`extensions` lists child-Pi extension specs needed to load machine-local providers, for example `"npm:your-provider-extension"`. Reviewers report at most five concrete findings each, with a candidate minimal fix and only a coarse `TINY`/`SMALL`/`MEDIUM`/`LARGE` involvement size. When they finish, a persistent, wrapped transcript panel shows each reviewer's unverified claim counts and up to two sanitized titles; this adds no model call or lead work. The active implementation agent then adjudicates their feedback using its current model, thinking level, conversation context, and normal tools; no separate lead subprocess is started. The lead performs targeted verification rather than a second whole-patch review, and adds fix sizing/trade-off detail only for recommended work or a real issue rejected because its remedy is disproportionate. Review logs are private machine-local artifacts under `~/.pi/agent/code-review/runs/`. Use `/code-review-logs` to open the newest run or `/code-review-logs path` to print its path.
-
+- **[Artifact](prompts/artifact.md)** — `/artifact` turns a focused session outcome into a durable handoff document.
