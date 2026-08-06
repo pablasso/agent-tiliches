@@ -17,6 +17,7 @@ const FIVE_HOUR_MIN_SECONDS = 4 * 60 * 60;
 const FIVE_HOUR_MAX_SECONDS = 6 * 60 * 60;
 const WEEK_MIN_SECONDS = 6 * 24 * 60 * 60;
 const WEEK_MAX_SECONDS = 8 * 24 * 60 * 60;
+const WEEKLY_RESET_STATUS_THRESHOLD_PERCENT = 35;
 
 interface FetchCodexUsageOptions {
 	accountId?: string;
@@ -360,17 +361,29 @@ function formatPercent(value: number): string {
 	return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
+function formatStatusWindow(window: CodexUsageWindow, showLowWeeklyReset: boolean): string {
+	const remaining = leftPercent(window);
+	const reset =
+		showLowWeeklyReset && remaining < WEEKLY_RESET_STATUS_THRESHOLD_PERCENT && window.resetsAt !== undefined
+			? ` until ${formatLocalReset(window.resetsAt)}`
+			: "";
+	return `${formatPercent(remaining)}%${reset}`;
+}
+
 export function formatCodexUsageStatus(snapshot: CodexUsageSnapshot): string {
 	const { fiveHour, weekly, other } = classifyCodexWindows(snapshot.defaultLimit);
 	const windows = [
-		...(fiveHour ? [{ label: "5h", window: fiveHour }] : []),
-		...(weekly ? [{ label: "week", window: weekly }] : []),
-		...other,
+		...(fiveHour ? [{ label: "5h", window: fiveHour, showLowWeeklyReset: false }] : []),
+		...(weekly ? [{ label: "week", window: weekly, showLowWeeklyReset: true }] : []),
+		...other.map((item) => ({ ...item, showLowWeeklyReset: false })),
 	];
 	if (windows.length === 0) return "Codex limits unavailable";
-	if (windows.length === 1) return `Codex: ${formatPercent(leftPercent(windows[0]!.window))}%`;
+	if (windows.length === 1) {
+		const window = windows[0]!;
+		return `Codex: ${formatStatusWindow(window.window, window.showLowWeeklyReset)}`;
+	}
 	return `Codex: ${windows
-		.map(({ label, window }) => `${label} ${formatPercent(leftPercent(window))}%`)
+		.map(({ label, window, showLowWeeklyReset }) => `${label} ${formatStatusWindow(window, showLowWeeklyReset)}`)
 		.join(" · ")}`;
 }
 

@@ -67,6 +67,32 @@ assert.equal(classifyCodexWindows(parsed.defaultLimit).fiveHour?.usedPercent, 23
 assert.equal(classifyCodexWindows(parsed.defaultLimit).weekly?.usedPercent, 40.5);
 assert.equal(formatCodexUsageStatus(parsed), "Codex: 5h 77% · week 59.5%");
 
+const lowWeeklyResetAt = parsed.defaultLimit!.secondary!.resetsAt!;
+const lowWeeklyReset = new Date(lowWeeklyResetAt * 1_000).toLocaleString(undefined, {
+	month: "short",
+	day: "numeric",
+	hour: "numeric",
+	minute: "2-digit",
+});
+const lowWeekly = {
+	...parsed,
+	defaultLimit: {
+		...parsed.defaultLimit!,
+		secondary: { ...parsed.defaultLimit!.secondary!, usedPercent: 66 },
+	},
+};
+assert.equal(formatCodexUsageStatus(lowWeekly), `Codex: 5h 77% · week 34% until ${lowWeeklyReset}`);
+assert.equal(
+	formatCodexUsageStatus({
+		...lowWeekly,
+		defaultLimit: {
+			...lowWeekly.defaultLimit,
+			secondary: { ...lowWeekly.defaultLimit.secondary, usedPercent: 65 },
+		},
+	}),
+	"Codex: 5h 77% · week 35%",
+);
+
 const details = formatCodexUsageDetails(parsed, nowMs);
 assert.match(details, /Codex usage \(Plus\)/);
 assert.match(details, /5h: 77% left \(23% used\)/);
