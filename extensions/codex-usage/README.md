@@ -10,7 +10,7 @@ Tracks the account-level limits attached to Pi's `openai-codex` provider (the pr
 - The server-reported weekly window, when present
 - Reset countdowns, plan, credits, and named/model-specific limits through `/codex-usage`
 
-OpenAI does not always return both windows. The extension classifies windows by their server-reported duration, so a lone 7-day window is shown as weekly rather than incorrectly labeled as the historical primary 5-hour window. Windows OpenAI does not return are omitted.
+OpenAI does not always return both windows. The extension classifies windows by their server-reported duration, so a lone 7-day window is shown as weekly rather than incorrectly labeled as the historical primary 5-hour window. Windows OpenAI does not return are omitted. Provider placeholder slots that contain a percentage but no duration are also omitted because they cannot be reliably identified.
 
 ## Commands
 

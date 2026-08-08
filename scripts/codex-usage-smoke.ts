@@ -145,6 +145,22 @@ assert.equal(formatCodexUsageStatus(weeklyOnly), "Codex: 86%");
 assert.doesNotMatch(formatCodexUsageDetails(weeklyOnly, nowMs), /5h:/);
 assert.match(formatCodexUsageDetails(weeklyOnly, nowMs), /Weekly: 86% left/);
 
+// Provider headers can include an empty secondary placeholder without a
+// duration. It is not evidence of a 5-hour limit and should not be displayed.
+const weeklyWithSecondaryPlaceholder = parseCodexRateLimitHeaders(
+	{
+		"x-codex-primary-used-percent": "35",
+		"x-codex-primary-window-minutes": "10080",
+		"x-codex-secondary-used-percent": "0",
+	},
+	nowMs,
+);
+assert(weeklyWithSecondaryPlaceholder);
+assert.equal(weeklyWithSecondaryPlaceholder.defaultLimit?.secondary?.usedPercent, 0);
+assert.equal(classifyCodexWindows(weeklyWithSecondaryPlaceholder.defaultLimit).other.length, 0);
+assert.equal(formatCodexUsageStatus(weeklyWithSecondaryPlaceholder), "Codex: 65%");
+assert.doesNotMatch(formatCodexUsageDetails(weeklyWithSecondaryPlaceholder, nowMs), /Secondary limit|5h:/);
+
 const fromHeaders = parseCodexRateLimitHeaders(
 	{
 		"X-Codex-Plan-Type": "pro",

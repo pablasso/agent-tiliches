@@ -341,24 +341,17 @@ export function classifyCodexWindows(limit: CodexRateLimit | undefined): Classif
 		limit.secondary ? { slot: "secondary" as const, window: limit.secondary } : undefined,
 	].filter((entry): entry is { slot: "primary" | "secondary"; window: CodexUsageWindow } => Boolean(entry));
 
-	let fiveHour = entries.find((entry) => isFiveHourWindow(entry.window))?.window;
-	let weekly = entries.find((entry) => isWeeklyWindow(entry.window))?.window;
+	const fiveHour = entries.find((entry) => isFiveHourWindow(entry.window))?.window;
+	const weekly = entries.find((entry) => isWeeklyWindow(entry.window))?.window;
 	const claimed = new Set<CodexUsageWindow>([fiveHour, weekly].filter((window): window is CodexUsageWindow => Boolean(window)));
 
-	// Older responses occasionally omitted durations while retaining the
-	// historical primary=5h, secondary=weekly layout. Only use that fallback
-	// when neither slot can be classified by a server-reported duration.
-	if (!fiveHour && !weekly && entries.every((entry) => entry.window.durationSeconds === undefined)) {
-		fiveHour = entries.find((entry) => entry.slot === "primary")?.window;
-		weekly = entries.find((entry) => entry.slot === "secondary")?.window;
-		if (fiveHour) claimed.add(fiveHour);
-		if (weekly) claimed.add(weekly);
-	}
-
+	// Some provider responses include a zero-used placeholder slot without its
+	// duration. It cannot be identified as a real limit (in particular, as the
+	// historical 5-hour window), so do not present it to the user.
 	const other = entries
-		.filter((entry) => !claimed.has(entry.window))
+		.filter((entry) => !claimed.has(entry.window) && entry.window.durationSeconds !== undefined)
 		.map((entry) => ({
-			label: entry.window.durationSeconds ? formatWindowDuration(entry.window.durationSeconds) : `${capitalize(entry.slot)} limit`,
+			label: formatWindowDuration(entry.window.durationSeconds!),
 			window: entry.window,
 		}));
 	return { ...(fiveHour ? { fiveHour } : {}), ...(weekly ? { weekly } : {}), other };
