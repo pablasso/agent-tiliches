@@ -69,29 +69,30 @@ assert.equal(parsed.credits?.balance, "42.5");
 assert.equal(parsed.rateLimitResetCredits?.availableCount, 1);
 assert.equal(classifyCodexWindows(parsed.defaultLimit).fiveHour?.usedPercent, 23);
 assert.equal(classifyCodexWindows(parsed.defaultLimit).weekly?.usedPercent, 40.5);
-assert.equal(formatCodexUsageStatus(parsed), "Codex: 5h 77% · week 59.5% · 1 reset available");
+const weeklyResetAt = parsed.defaultLimit!.secondary!.resetsAt!;
+const weeklyResetDate = new Date(weeklyResetAt * 1_000).toLocaleDateString(undefined, {
+	month: "short",
+	day: "numeric",
+});
+assert.equal(
+	formatCodexUsageStatus(parsed),
+	`Codex 5h 77% · 59.5% · ↻\u2009${weeklyResetDate} · 1 reset`,
+);
 assert.equal(
 	formatCodexUsageStatus({
 		...parsed,
 		rateLimitResetCredits: { availableCount: 2 },
 	}),
-	"Codex: 5h 77% · week 59.5% · 2 resets available",
+	`Codex 5h 77% · 59.5% · ↻\u2009${weeklyResetDate} · 2 resets`,
 );
 assert.equal(
 	formatCodexUsageStatus({
 		...parsed,
 		rateLimitResetCredits: { availableCount: 0 },
 	}),
-	"Codex: 5h 77% · week 59.5%",
+	`Codex 5h 77% · 59.5% · ↻\u2009${weeklyResetDate}`,
 );
 
-const lowWeeklyResetAt = parsed.defaultLimit!.secondary!.resetsAt!;
-const lowWeeklyReset = new Date(lowWeeklyResetAt * 1_000).toLocaleString(undefined, {
-	month: "short",
-	day: "numeric",
-	hour: "numeric",
-	minute: "2-digit",
-});
 const lowWeekly = {
 	...parsed,
 	defaultLimit: {
@@ -101,7 +102,7 @@ const lowWeekly = {
 };
 assert.equal(
 	formatCodexUsageStatus(lowWeekly),
-	`Codex: 5h 77% · week 34% until ${lowWeeklyReset} · 1 reset available`,
+	`Codex 5h 77% · 34% · ↻\u2009${weeklyResetDate} · 1 reset`,
 );
 assert.equal(
 	formatCodexUsageStatus({
@@ -111,7 +112,7 @@ assert.equal(
 			secondary: { ...lowWeekly.defaultLimit.secondary, usedPercent: 65 },
 		},
 	}),
-	"Codex: 5h 77% · week 35% · 1 reset available",
+	`Codex 5h 77% · 35% · ↻\u2009${weeklyResetDate} · 1 reset`,
 );
 
 const details = formatCodexUsageDetails(parsed, nowMs);
@@ -141,7 +142,11 @@ const weeklyOnly = parseCodexUsageResponse(
 const weeklyOnlyWindows = classifyCodexWindows(weeklyOnly.defaultLimit);
 assert.equal(weeklyOnlyWindows.fiveHour, undefined);
 assert.equal(weeklyOnlyWindows.weekly?.usedPercent, 14);
-assert.equal(formatCodexUsageStatus(weeklyOnly), "Codex: 86%");
+const weeklyOnlyResetDate = new Date(weeklyOnlyWindows.weekly!.resetsAt! * 1_000).toLocaleDateString(undefined, {
+	month: "short",
+	day: "numeric",
+});
+assert.equal(formatCodexUsageStatus(weeklyOnly), `Codex 86% · ↻\u2009${weeklyOnlyResetDate}`);
 assert.doesNotMatch(formatCodexUsageDetails(weeklyOnly, nowMs), /5h:/);
 assert.match(formatCodexUsageDetails(weeklyOnly, nowMs), /Weekly: 86% left/);
 
@@ -158,7 +163,7 @@ const weeklyWithSecondaryPlaceholder = parseCodexRateLimitHeaders(
 assert(weeklyWithSecondaryPlaceholder);
 assert.equal(weeklyWithSecondaryPlaceholder.defaultLimit?.secondary?.usedPercent, 0);
 assert.equal(classifyCodexWindows(weeklyWithSecondaryPlaceholder.defaultLimit).other.length, 0);
-assert.equal(formatCodexUsageStatus(weeklyWithSecondaryPlaceholder), "Codex: 65%");
+assert.equal(formatCodexUsageStatus(weeklyWithSecondaryPlaceholder), "Codex 65%");
 assert.doesNotMatch(formatCodexUsageDetails(weeklyWithSecondaryPlaceholder, nowMs), /Secondary limit|5h:/);
 
 const fromHeaders = parseCodexRateLimitHeaders(

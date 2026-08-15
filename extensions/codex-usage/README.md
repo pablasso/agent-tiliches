@@ -4,8 +4,8 @@ Tracks the account-level limits attached to Pi's `openai-codex` provider (the pr
 
 ## What it shows
 
-- A compact footer status while an `openai-codex` model is selected: `Codex: 86%` for one limit, or every labeled limit when OpenAI reports multiple windows. Below 35% weekly allowance, it also shows the local reset time as `until <time>`
-- Banked usage-limit reset credits in the footer when available, such as `· 1 reset available`; zero available resets are omitted
+- A compact footer status while an `openai-codex` model is selected, such as `Codex 59.5% · ↻ Aug 12 · 1 reset`. The weekly allowance always includes its local scheduled reset date when OpenAI reports one; `/codex-usage` retains the exact time, countdown, and explicit window label
+- Banked usage-limit reset credits remain a separate `1 reset` footer indicator when available; zero available resets are omitted
 - The server-reported 5-hour window, when present
 - The server-reported weekly window, when present
 - Reset countdowns, plan, credits, and named/model-specific limits through `/codex-usage`
