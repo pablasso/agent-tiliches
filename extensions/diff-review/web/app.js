@@ -1006,6 +1006,7 @@ function setupMonaco() {
       renderOverviewRuler: true,
       diffWordWrap: "on",
       scrollBeyondLastLine: false,
+      fontSize: 15,
       lineNumbersMinChars: 4,
       glyphMargin: true,
       folding: true,
