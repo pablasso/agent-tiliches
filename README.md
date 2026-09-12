@@ -30,6 +30,7 @@ Then run `/reload` in an existing Pi session, or restart Pi.
 
 - **[Brave Search](skills/brave-search/SKILL.md)** — searches the web and extracts readable page content through the Brave Search API.
 - **[Browser tools](skills/browser-tools/SKILL.md)** — navigates and debugs web pages with Playwright CLI.
+- **[shadcn.io](skills/shadcn/SKILL.md)** — discovers UI components, blocks, charts, and icons through a separately configured local connector; credentials and private paths stay outside this repository.
 - **[YouTube transcript](skills/youtube-transcript/SKILL.md)** — fetches timestamped transcripts from YouTube videos.
 
 ### Prompt templates

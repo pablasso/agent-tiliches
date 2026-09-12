@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+CONNECTOR="$HOME/.config/agent-tiliches/shadcnio"
+if [ ! -f "$CONNECTOR" ] || [ ! -x "$CONNECTOR" ]; then
+    printf '%s\n' 'shadcn: configure an executable at ~/.config/agent-tiliches/shadcnio; see this skill’s SKILL.md.' >&2
+    exit 127
+fi
+
+exec "$CONNECTOR" "$@"
