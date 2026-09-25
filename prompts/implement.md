@@ -12,7 +12,7 @@ You coordinate implementors and, when useful, independent code reviewers. You do
 
 The request is a free-text selector for work whose context already exists in the conversation or in sources the user identifies. Read those sources and relevant repository instructions. Do not restart the design process or expand the scope. If the request is empty, the context is missing or contradictory, or a decision genuinely blocks execution, ask a focused question rather than inventing a plan.
 
-Before controlling Herdr, read its skill and require `HERDR_ENV=1`. If unavailable, explain and stop; do not control another session or substitute hidden agents. Discover command syntax from the installed CLI as the skill directs.
+Before controlling Herdr, read its skill and require `HERDR_ENV=1`. If unavailable, explain and stop; do not control another session or substitute hidden agents. Discover command syntax from the installed CLI as the skill directs. Also require the `factory` tool for monitoring; if missing, ask the user to load/reload the Factory extension before proceeding rather than silently falling back to model-driven polling.
 
 Perform read-only preflight:
 - Identify the repository, caller workspace/tab/pane, working directory, starting branch and commit, and existing staged, unstaged, and untracked changes.
@@ -55,7 +55,7 @@ Keep implementation tabs separate from review tabs and from the caller's orchest
 - **Parallel:** use native `herdr worktree create` with explicit branches and the approved base revision. Its linked workspaces are expected and authorized; do not replace them with a custom same-workspace layout. Reuse each new workspace's root tab/pane for implementation where practical. Place reviewers in a separate review tab in the workspace of the checkout they review. An integration worktree/workspace may be created through the same native flow.
 - Keep the user's focus unchanged with `--no-focus` on creation/split operations. Use returned IDs, never guessed IDs or the currently UI-focused pane.
 
-Track run-owned agents, workspace/tab/pane IDs, worktree paths, branches, baseline revisions, assignments, and commits so follow-ups and cleanup can target only this run's resources.
+After plan approval and before launching helpers, call `factory` with `action: "start"`, a concise `goal`, and a `note` identifying the approved plan and review strategy. Keep the returned `runId` for all subsequent reporting. The native session log is the assignment ledger: registration captures helper identity, workspace/pane, checkout, and Pi session path; include branches, baseline revisions, artifact/worktree references, and other run-owned resource IDs in assignment `evidence` so later auditing and cleanup stay scoped.
 
 ## 3. Delegate and coordinate
 
@@ -64,15 +64,20 @@ Give each helper a self-contained brief. Fresh helpers cannot be assumed to inhe
 - Relevant code/artifact paths and enough context to avoid rediscovering the design; use accessible absolute artifact paths when a document is outside their checkout.
 - Their checkout, branch, baseline, exact ownership boundaries, dependencies, and how their result will be integrated.
 - Acceptance criteria, checks, commit milestones, and the completion information to report.
-- Instructions to read applicable repository guidance, stay within scope, avoid unrelated changes, and not spawn other agents.
+- Instructions to read applicable repository guidance, stay within scope, avoid unrelated changes, and not spawn other agents. The parent owns Factory reporting; helpers must not create their own factory runs or send progress heartbeats.
 
 Implementors own all implementation and fixes. Assign an implementor as integration lead when parallel work needs combining; this may be one of the existing implementors, not necessarily another agent. Reviewers only inspect and report: no implementation edits, fixes, or commits.
 
 Allow at most one active writer and one Git/index operation at a time in a checkout, including operations by the orchestrator. Independent parallel implementors must use different worktrees. Shared external resources such as databases, ports, or generated outputs also need coordination; worktrees alone do not isolate them.
 
-Follow the Herdr skill for prompting, waiting, reading results, and blocked states. A ready/idle/done lifecycle state is not proof that the assignment passed its checks. Inspect reported results and repository evidence. On a timeout or stalled prompt, inspect before retrying; do not blindly submit duplicate work or answer approval dialogs on the user's behalf.
+Use this monitoring loop instead of repeated `herdr agent get`/`wait`/`read` polling:
+1. Once a helper is ready, register each bounded assignment with `factory action: "assign"`, `runId`, a new `assignmentId`, `name`, `role`, `task`, its live Herdr `target`, and relevant `evidence`. For reviews, include why the review is needed and the exact revision/scope. Do this before submitting the task; registration does not dispatch work.
+2. Submit through `herdr agent prompt` **without `--wait` in this workflow**, then use `factory action: "wait"` with the run ID. The extension waits and updates the widget without repeated model turns. Waiting can be cancelled without stopping helpers.
+3. When attention is needed, read the substantive result and inspect relevant evidence. Idle is not proof of delivery, task completion, or passing checks. An immediately idle helper may never have started; inspect before any retry. Do not blindly resubmit prompts or answer approval dialogs on the user's behalf.
+4. Acknowledge each outcome with `factory action: "update"`, `runId`, `assignmentId`, the reported `status` (`completed`, `blocked`, or `cancelled`), a concise `note`, and commit/check/review-disposition `evidence`. A blocked assignment can return to `active`. Close an assignment before reusing its helper for a new assignment ID. Handle the wait result rather than repeatedly waiting on the same unacknowledged idle helper.
+5. Record run-level decisions and significant milestones with `factory action: "update"`, `runId`, `note`, and optional `evidence`. Before asking for approval, set `phase: "waiting_user"` with the actual question; after approval set `phase: "running"`. Do not log every tool call or duplicate the native session transcript. After compaction/resume, use `factory action: "status"` to recover the ledger instead of reconstructing it from terminal output.
 
-Respect direct user interaction with helpers. Do not compete for terminal input; reconcile any changed instructions before continuing orchestration. Give concise milestone updates and surface blockers promptly. Escalate changes to approved architectural commitments or scope to the user rather than quietly redesigning the system.
+Respect direct user interaction with helpers. Do not compete for terminal input; reconcile changed instructions before continuing. Let the widget handle routine status; use conversation for decisions, meaningful explanations, blockers, and final guidance. Escalate changes to approved architectural commitments or scope rather than quietly redesigning the system.
 
 ## 4. Commit at significant steps
 
@@ -108,15 +113,11 @@ A parallel run is not complete while required contributions remain unmerged. Rep
 
 ## 7. Report completion and remain available
 
-Provide a concise summary with:
-- What was implemented and which first-named implementor did each part, including integration.
-- Who reviewed what, or why review was skipped.
-- Important accepted fixes, rejected/deferred findings, and any unresolved critical concerns.
-- Checks run and their actual results; remaining risks or unverified acceptance criteria.
-- Significant commit hashes, current branch, and local `main` merge status for parallel work.
-- Where the still-open helpers/worktrees can be inspected and any remaining blockers.
+After acknowledging all assignment outcomes and completing the required integration, call `factory action: "finish"` with the run ID, explicit `outcome: "completed"`, a concise summary in `note`, and `evidence` covering checks, commits, merge status, review decisions, and remaining caveats. The extension emits a durable receipt identifying who did/reviewed what; do not rely only on remembering a prose update. Never claim passing verification that was not performed.
 
-**Completion is not cleanup.** Leave the agents, tabs, linked workspaces, branches, and worktrees available for the user's inspection and follow-up requests. Continue to orchestrate follow-ups rather than implementing them yourself. Reuse suitable helpers, announce assignments, and keep committing, reviewing when worthwhile, and integrating parallel changes. Obtain approval for material changes to scope or execution plan.
+Then give a brief user-facing conclusion, including any requested usage instructions and important limitations. If ending the run without completing it, use `outcome: "blocked"` or `"cancelled"` and explain remaining work and live helpers. Finish ends monitoring, not helper processes. For an ordinary approval pause, leave the run open in `waiting_user` instead.
+
+**Completion is not cleanup.** Leave the agents, tabs, linked workspaces, branches, and worktrees available for the user's inspection and follow-up requests. Continue to orchestrate follow-ups rather than implementing them yourself. Start a new Factory run for follow-ups after a finished run; reuse suitable helpers but register fresh assignments. Announce assignments and keep committing, reviewing when worthwhile, and integrating parallel changes. Obtain approval for material changes to scope or execution plan.
 
 ## 8. Cleanup only when requested
 

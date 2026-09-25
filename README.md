@@ -18,6 +18,7 @@ Then run `/reload` in an existing Pi session, or restart Pi.
 
 ### Extensions
 
+- **[Factory](extensions/factory/README.md)** — a non-modal status widget, durable run/assignment history, and read-only Herdr monitoring for `/implement`; `/factory` shows progress and audit references without a model call.
 - **[Clone tab](extensions/clone-tab/README.md)** — `/clone-tab` opens the active conversation branch as an independent Pi session in a new Ghostty tab.
 - **[Code review](extensions/code-review/README.md)** — `/code-review` runs configured read-only reviewers in parallel, then has the current agent verify and prioritize their findings.
 - **[Codex usage](extensions/codex-usage/README.md)** — shows Codex login limits in the footer and through `/codex-usage`.
@@ -36,4 +37,5 @@ Then run `/reload` in an existing Pi session, or restart Pi.
 ### Prompt templates
 
 - **[Artifact](prompts/artifact.md)** — `/artifact` turns a focused session outcome into a durable handoff document.
-- **[Implement](prompts/implement.md)** — `/implement <what to implement and where its context lives>` proposes an execution plan, waits for approval, then coordinates named interactive Pi implementors and optional reviewers through Herdr. Parallel work uses native worktrees and merges back into local `main`; milestone commits and explicitly requested cleanup are part of the workflow.
+- **[Implement](prompts/implement.md)** — `/implement <what to implement and where its context lives>` proposes a plan, waits for approval, then coordinates named interactive Pi helpers through Herdr, using Factory for progress, waiting, and completion receipts. Parallel work merges back into local `main`; milestone commits and explicitly requested cleanup remain part of the workflow.
+- **[Audit Factory](prompts/audit-factory.md)** — `/audit-factory <session path and optional run ID>` performs an explicitly requested, read-only process audit in a separate Pi session, proposing small evidence-backed workflow experiments.

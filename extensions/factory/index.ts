@@ -136,7 +136,12 @@ export function createFactoryExtension(pi: ExtensionAPI, options: { intervalMs?:
 	pi.on("session_compact", (_event, context) => { ctx = context; refresh(); });
 	pi.on("agent_start", (_event, context) => { ctx = context; idle = false; refresh(); });
 	modern.on("agent_settled", (_event, context) => { ctx = context; idle = true; refresh(); });
-	pi.on("session_shutdown", () => { epoch++; monitor.stop(); ctx = undefined; });
+	pi.on("session_shutdown", () => {
+		epoch++;
+		monitor.stop();
+		if (ctx?.mode === "tui") ctx.ui.setWidget("factory", undefined);
+		ctx = undefined;
+	});
 
 	const tool = {
 		name: "factory",
@@ -202,10 +207,10 @@ export function createFactoryExtension(pi: ExtensionAPI, options: { intervalMs?:
 			const run = currentRun(state);
 			return {
 				content: [{ type: "text" as const, text: `${message}${run && !["status", "finish"].includes(params.action) ? `\nRun ID: ${run.id}\nPhase: ${run.phase}; ${run.assignments.filter((a) => a.status === "active" || a.status === "blocked").length} open assignment(s).` : ""}` }],
-				details: { action: params.action, runId: run?.id },
+				details: { action: params.action, runId: params.action === "status" && params.runId ? params.runId : run?.id },
 			};
 		},
-		renderCall(params: Params, theme: Theme) { return new Text(theme.fg("toolTitle", `factory ${params.action}`), 0, 0); },
+		renderCall(params: Params, theme: Theme) { return new Text(theme.fg("toolTitle", `factory ${params.action ?? "…"}`), 0, 0); },
 		renderResult(result: { content: { type: string; text?: string }[] }, options: { expanded: boolean }) {
 			const text = safeText(result.content.map((c) => c.text ?? "").join("\n"));
 			return new Text(options.expanded ? text : text.split("\n")[0], 0, 0);

@@ -184,7 +184,7 @@ try {
 		assert.ok(lines.every((line) => !line.replace(/\x1b\[0m/g, "").includes("\u001b")), "Only the TUI truncator's own ANSI resets may remain");
 	}
 	assert.equal(safeText("hello\u001b]0;injected\u0007world"), "helloworld");
-	assert.match(h.widgetText(50), /Factory/);
+	assert.equal(h.widgetText(50), "", "Shutdown clears the old runtime's widget");
 	assert.equal(h.modelTurns, 0);
 	console.log("factory runtime smoke ok (mocked Herdr only; no live agents touched)");
 } finally {
