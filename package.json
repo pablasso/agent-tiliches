@@ -24,7 +24,7 @@
     ]
   },
   "scripts": {
-    "check": "node --no-warnings --experimental-strip-types scripts/web-fetch-smoke.ts && node --no-warnings --experimental-strip-types scripts/diff-review-smoke.ts && node --no-warnings --experimental-strip-types scripts/code-review-smoke.ts && node --no-warnings --experimental-strip-types scripts/codex-usage-smoke.ts && node --no-warnings --experimental-strip-types scripts/clone-tab-smoke.ts && node --no-warnings --experimental-strip-types scripts/shadcn-smoke.ts"
+    "check": "node --no-warnings --experimental-strip-types scripts/web-fetch-smoke.ts && node --no-warnings --experimental-strip-types scripts/diff-review-smoke.ts && node --no-warnings --experimental-strip-types scripts/code-review-smoke.ts && node --no-warnings --experimental-strip-types scripts/codex-usage-smoke.ts && node --no-warnings --experimental-strip-types scripts/clone-tab-smoke.ts && node --no-warnings --experimental-strip-types scripts/shadcn-smoke.ts && node --no-warnings --experimental-strip-types scripts/factory-smoke.ts"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
