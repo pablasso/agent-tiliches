@@ -36,3 +36,4 @@ Then run `/reload` in an existing Pi session, or restart Pi.
 ### Prompt templates
 
 - **[Artifact](prompts/artifact.md)** — `/artifact` turns a focused session outcome into a durable handoff document.
+- **[Implement](prompts/implement.md)** — `/implement <what to implement and where its context lives>` proposes an execution plan, waits for approval, then coordinates named interactive Pi implementors and optional reviewers through Herdr. Parallel work uses native worktrees and merges back into local `main`; milestone commits and explicitly requested cleanup are part of the workflow.
