@@ -8,7 +8,7 @@ $ARGUMENTS
 
 Treat this request as the strict selection criterion for the artifact.
 
-Unless the request explicitly specifies another destination, write the artifact under `artifacts/`, relative to the workspace root. Create the destination directory if it does not exist.
+Write the artifact to the destination specified in the request. If no destination is specified, ask a concise clarifying question about where to save it before writing. Create the destination directory if it does not exist.
 
 ## Scope
 
@@ -36,11 +36,11 @@ The artifact is intended for a future agent that has no access to this conversat
 
 Begin with a clear, descriptive title.
 
-Name the file using:
+Use the filename specified in the request. If no filename is specified, use:
 
 `YYYY-MM-DD-<concise-descriptive-title>.md`
 
-The date must come first. Do not overwrite an existing artifact unless explicitly instructed; choose a more specific title if necessary.
+Do not overwrite an existing artifact unless explicitly instructed; choose a more specific title if necessary.
 
 ## Response after writing
 
