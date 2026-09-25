@@ -60,7 +60,7 @@ interface EventBase {
 }
 export type FactoryEvent = EventBase & (
 	| { kind: "start"; goal: string; ownerSessionId: string; sessionFile: string; cwd: string; scope: string; note: string }
-	| { kind: "assign"; id: string; name: string; role: string; task: string; agent: AgentRef }
+	| { kind: "assign"; id: string; name: string; role: string; task: string; agent: AgentRef; evidence?: string[] }
 	| { kind: "update"; assignmentId?: string; status?: AssignmentStatus; phase?: Phase; note: string; evidence: string[] }
 	| { kind: "observe"; assignmentId: string; state: RuntimeState; detail: string }
 	| { kind: "finish"; outcome: Outcome; summary: string; evidence: string[]; receipt: string }
@@ -82,6 +82,7 @@ export function applyEvent(state: FactoryState, event: FactoryEvent): FactorySta
 	let run: Run;
 	if (event.kind === "start") {
 		for (const field of ["goal", "ownerSessionId", "sessionFile", "cwd", "scope"] as const) requireText(event[field], field);
+		if (typeof event.note !== "string") throw new Error("Invalid run note.");
 		if (state.runs.some((item) => item.id === event.runId)) throw new Error("Run ID already exists.");
 		if (previous && !previous.finish && previous.ownerSessionId === event.ownerSessionId) {
 			throw new Error("A factory run is already open. Update or finish it before starting another.");
@@ -99,6 +100,7 @@ export function applyEvent(state: FactoryState, event: FactoryEvent): FactorySta
 	switch (event.kind) {
 		case "assign": {
 			for (const field of ["id", "name", "role", "task"] as const) requireText(event[field], field);
+			requireEvidence(event.evidence ?? []);
 			for (const field of ["paneId", "workspaceId", "terminalId", "sessionFile", "cwd"] as const) {
 				requireText(event.agent?.[field], `agent.${field}`);
 			}
@@ -108,7 +110,7 @@ export function applyEvent(state: FactoryState, event: FactoryEvent): FactorySta
 			}
 			run.assignments.push({
 				id: event.id, name: event.name, role: event.role, task: event.task, agent: { ...event.agent },
-				status: "active", note: event.task, evidence: [], createdAt: event.at, updatedAt: event.at,
+				status: "active", note: event.task, evidence: [...event.evidence ?? []], createdAt: event.at, updatedAt: event.at,
 			});
 			run.note = `${event.name}: ${event.task}`;
 			break;
