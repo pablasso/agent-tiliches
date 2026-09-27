@@ -37,5 +37,4 @@ Then run `/reload` in an existing Pi session, or restart Pi.
 ### Prompt templates
 
 - **[Artifact](prompts/artifact.md)** — `/artifact` turns a focused session outcome into a durable handoff document.
-- **[Implement](prompts/implement.md)** — `/implement <what to implement and where its context lives>` proposes a plan, waits for approval, then coordinates named interactive Pi helpers through Herdr, using Factory for progress, waiting, and completion receipts. Parallel work merges back into local `main`; milestone commits and explicitly requested cleanup remain part of the workflow.
 - **[Audit Factory](prompts/audit-factory.md)** — `/audit-factory <session path and optional run ID>` performs an explicitly requested, read-only process audit in a separate Pi session, proposing small evidence-backed workflow experiments.
