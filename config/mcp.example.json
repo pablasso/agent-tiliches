@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "shadcnio": {
+      "url": "https://www.shadcn.io/api/mcp",
+      "headers": {
+        "Authorization": "!token=$(cat \"$HOME/.pi/agent/mcp-secrets/shadcnio-token\") && test -n \"$token\" && printf 'Bearer %s' \"$token\""
+      },
+      "description": "shadcn.io Pro component discovery and source. Follow the shadcn skill; token-bearing install and icon-source tools are intentionally hidden.",
+      "exposure": "hidden",
+      "toolExposure": {
+        "search_items": "codemode",
+        "list_items": "codemode",
+        "list_block_categories": "codemode",
+        "list_blocks_in_category": "codemode",
+        "get_item": "codemode",
+        "get_item_source": "codemode",
+        "search_icons": "codemode",
+        "list_tools": "codemode",
+        "get_item_details": "codemode",
+        "get_preview_url": "codemode",
+        "whoami": "codemode",
+        "list_popular": "codemode",
+        "get_registry_stats": "codemode"
+      }
+    },
+    "linear": {
+      "url": "https://mcp.linear.app/mcp",
+      "oauth": {
+        "scope": "read write"
+      },
+      "description": "Linear issues, projects, and comments. Read the linear skill first. Every write requires an exact preview and explicit user confirmation; no admin operations or default team.",
+      "exposure": "codemode"
+    }
+  }
+}

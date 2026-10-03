@@ -14,6 +14,10 @@ pi install .
 
 Then run `/reload` in an existing Pi session, or restart Pi.
 
+For shadcn.io Pro and Linear, configure [native Pi MCP](docs/mcp.md) separately.
+Personal configuration and credentials stay under `~/.pi/agent/`, outside this
+repository. No external MCP client or adapter is required.
+
 ## What's included
 
 ### Extensions
@@ -30,7 +34,8 @@ Then run `/reload` in an existing Pi session, or restart Pi.
 
 - **[Brave Search](skills/brave-search/SKILL.md)** — searches the web and extracts readable page content through the Brave Search API.
 - **[Browser tools](skills/browser-tools/SKILL.md)** — navigates and debugs web pages with Playwright CLI.
-- **[shadcn.io](skills/shadcn/SKILL.md)** — discovers UI components, blocks, charts, and icons through a separately configured local connector; credentials and private paths stay outside this repository.
+- **[Linear](skills/linear/SKILL.md)** — uses native Pi MCP for issues, projects, and comments, with explicit confirmation before every write and no admin operations.
+- **[shadcn.io](skills/shadcn/SKILL.md)** — uses native Pi MCP for component discovery, premium source retrieval, and icon search; tools that return token-bearing URLs are intentionally hidden.
 - **[YouTube transcript](skills/youtube-transcript/SKILL.md)** — fetches timestamped transcripts from YouTube videos.
 
 ### Prompt templates
