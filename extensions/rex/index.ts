@@ -17,7 +17,8 @@ export interface RexRuntime {
 /**
  * Gives Pi the startup context that Rex's SessionStart hook gives Claude Code and Codex: which Rex
  * session and pane it runs in, and, when `rex skill setup --session-naming` is installed, the
- * instruction to name the session after its task.
+ * instruction to name its own tab after its task. Rex's hook asks to name the session instead;
+ * several agents can share a session, so this extension leaves the session's name to the user.
  *
  * The text comes from the installed Rex each session, so upgrading Rex updates it. It goes into a
  * system prompt section rather than a transcript message, so it survives compaction and follows
