@@ -28,6 +28,7 @@ repository. No external MCP client or adapter is required.
 - **[Comment](extensions/comment/)** — `/comment` opens the latest assistant response in `$VISUAL` or `$EDITOR` for annotation.
 - **[Diff review](extensions/diff-review/)** — `/diff-review` opens a native window for reviewing Git changes and returns the feedback to Pi.
 - **[No sleep](extensions/no-sleep.ts)** — `/no-sleep` controls macOS sleep prevention while Pi is running, copied from [Armin Ronacher's agent-stuff](https://github.com/mitsuhiko/agent-stuff).
+- **[Rex](extensions/rex/README.md)**: tells Pi which Rex session and pane it runs in at startup, the same context Rex's SessionStart hook gives Claude Code and Codex.
 - **[Web fetch](extensions/web-fetch/README.md)** — adds the static `web_fetch` tool for extracting readable content from a URL.
 
 ### Skills
